@@ -148,6 +148,20 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
  .acfpacf > div{border-right:none;border-bottom:1px solid var(--rule)}
  .acfpacf > div:last-child{border-bottom:none}
 }
+/* Editorial dropdowns */
+.pickers{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:1.4rem}
+@media (min-width:680px){.pickers{grid-template-columns:1fr 1fr}}
+.picker-select{display:flex;flex-direction:column;gap:0.35rem;border:1px solid var(--rule);background:var(--paper);padding:0.85rem 1rem;transition:border-color 0.15s}
+.picker-select:focus-within{border-color:var(--ink)}
+.picker-select .lbl{font-family:var(--mono);font-size:0.66rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin:0}
+.picker-select select{font-family:var(--serif);font-size:1.1rem;font-weight:500;padding:0.15rem 1.6rem 0.15rem 0;background:transparent;border:none;color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 12px) 60%,calc(100% - 7px) 60%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;width:100%;outline:none}
+.picker-select select:focus{color:var(--ink)}
+.picker-select .hint{font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--muted);margin:0;line-height:1.45}
+.picker-select option{background:var(--paper);color:var(--ink);font-family:var(--sans);font-style:normal}
+:root[data-theme="dark"] .picker-select option{background:var(--paper);color:var(--ink)}
+/* Interpretation captions under tables and panels */
+.interp{margin:0.7rem 0 1.4rem;padding:0.7rem 1rem;background:var(--soft);border-left:3px solid var(--muted);font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--ink);line-height:1.5}
+.interp strong{font-style:normal;font-weight:500;color:var(--terra);font-family:var(--mono);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -191,14 +205,16 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
  <p class="sub">Eight series chosen to put differencing in its place. Notice when the original is stationary, when one difference suffices, and when even two does not save you from a seasonal mismatch.</p>
 
  <div class="pickers">
-  <div class="picker">
-   <header><span class="label">Series</span><span>8 scenarios</span></header>
-   <div id="dsList" class="options"></div>
-  </div>
-  <div class="picker">
-   <header><span class="label">ARIMA(p, d, q)</span><span>9 candidates</span></header>
-   <div id="mdList" class="options"></div>
-  </div>
+  <label class="picker-select">
+   <span class="lbl">Series</span>
+   <select id="dsList" aria-label="Series"></select>
+   <span class="hint" id="dsHint"></span>
+  </label>
+  <label class="picker-select">
+   <span class="lbl">ARIMA(p, d, q)</span>
+   <select id="mdList" aria-label="ARIMA(p, d, q)"></select>
+   <span class="hint" id="mdHint"></span>
+  </label>
  </div>
 
  <div class="diff-stack" id="diffStack"></div>
@@ -207,6 +223,7 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
   <div class="head">ADF test on the original series</div>
   <div class="body" id="adfBody"></div>
  </div>
+ <p class="interp" id="adfInterp"></p>
 
  <div class="aic-table">
   <div class="head"><span>AIC and BIC, grouped by d. Within-d comparable, across-d misleading.</span><span id="aicBest"></span></div>
@@ -215,6 +232,8 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
    <tbody id="aicBody"></tbody>
   </table></div>
  </div>
+
+ <p class="interp" id="aicInterp"></p>
 
  <div class="verdict" id="verdict">
   <div class="label" id="verdictLabel">Verdict</div>
@@ -438,10 +457,12 @@ function genericVerdict(sc,md){
 // ===== State =====
 let curSc=SC[0].id, curMd=MD[0].id;
 function buildPickers(){
- document.getElementById('dsList').innerHTML = SC.map(s=>`<button class="opt" data-sc="${s.id}"><span>${s.name}</span><span class="meta">${s.blurb}</span></button>`).join('');
- document.getElementById('mdList').innerHTML = MD.map(m=>`<button class="opt" data-md="${m.id}"><span>${m.name}</span><span class="meta">${m.blurb}</span></button>`).join('');
- document.getElementById('dsList').addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(b){curSc=b.dataset.sc;render();}});
- document.getElementById('mdList').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(b){curMd=b.dataset.md;render();}});
+ const ds=document.getElementById('dsList');
+ ds.innerHTML = SC.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+ ds.addEventListener('change',e=>{curSc=e.target.value;render();});
+ const md=document.getElementById('mdList');
+ md.innerHTML = MD.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+ md.addEventListener('change',e=>{curMd=e.target.value;render();});
 }
 
 function renderDiffStack(sc){
@@ -472,6 +493,17 @@ function renderADF(sc){
   <div class="row"><span class="lbl">Lags used</span><span class="val">${test.lags}</span></div>
   <div class="verdict-line">${verdictText}</div>
  `;
+ // Plain-language read of the ADF result
+ const ai = document.getElementById('adfInterp');
+ if(ai){
+  if(isNaN(test.stat)){
+   ai.innerHTML = '<strong>How to read</strong>Not enough data points for a reliable ADF test on this series.';
+  } else {
+   const compare = reject ? `is more negative than ${test.crit[1].toFixed(2)}` : `is not negative enough to clear ${test.crit[1].toFixed(2)}`;
+   const conclusion = reject ? 'so the unit root null is rejected and the series can be modelled directly' : 'so the unit root cannot be ruled out and differencing is needed before fitting an ARMA';
+   ai.innerHTML = `<strong>How to read</strong>The test statistic ${test.stat.toFixed(2)} ${compare}, the 5% critical value, ${conclusion}. The more negative the statistic, the stronger the evidence for stationarity.`;
+  }
+ }
 }
 
 function fitARIMA(y,p,d,q){
@@ -493,6 +525,14 @@ function renderAICTable(sc, md){
  const bestAic = sameD.length? sameD.reduce((b,r)=>r.aic<b.aic?r:b,sameD[0]) : null;
  const bestBic = sameD.length? sameD.reduce((b,r)=>r.bic<b.bic?r:b,sameD[0]) : null;
  document.getElementById('aicBest').textContent = bestAic ? `Within d=${md.d}: AIC favours ${bestAic.md.name}, BIC favours ${bestBic.md.name}` : `No comparison within d=${md.d}`;
+ const ai2 = document.getElementById('aicInterp');
+ if(ai2 && bestAic){
+  const curRow = rows.find(r=>r.md.id===md.id);
+  const sameD = curRow.md.d===md.d;
+  const dAic = curRow.aic - bestAic.aic;
+  const support = dAic < 2 ? 'essentially tied with the best in this group' : dAic < 7 ? 'meaningfully worse, but still in the same conversation' : dAic < 10 ? 'considerably weaker than the best in this group' : 'essentially ruled out within this d';
+  ai2.innerHTML = `<strong>How to read</strong>AIC and BIC are only directly comparable within the same d. Highlighted rows share your selection's d=${md.d}; greyed rows use a different d and their numbers are advisory only. Your selection (${md.name}) is ΔAIC = ${dAic.toFixed(1)} above the best at d=${md.d}, ${support}.`;
+ }
  document.getElementById('aicBody').innerHTML = rows.map(r=>{
   const cls=[];
   if(r.md.id===md.id) cls.push('current');
@@ -503,8 +543,10 @@ function renderAICTable(sc, md){
 
 function render(){
  const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
- document.querySelectorAll('[data-sc]').forEach(b=>b.classList.toggle('on',b.dataset.sc===curSc));
- document.querySelectorAll('[data-md]').forEach(b=>b.classList.toggle('on',b.dataset.md===curMd));
+ document.getElementById('dsList').value=curSc;
+ document.getElementById('mdList').value=curMd;
+ document.getElementById('dsHint').textContent=sc.blurb;
+ document.getElementById('mdHint').textContent=md.blurb;
  renderDiffStack(sc);
  renderADF(sc);
  renderAICTable(sc, md);

@@ -145,6 +145,20 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
  .acfpacf > div{border-right:none;border-bottom:1px solid var(--rule)}
  .acfpacf > div:last-child{border-bottom:none}
 }
+/* Editorial dropdowns */
+.pickers{display:grid;grid-template-columns:1fr;gap:1rem;margin-bottom:1.4rem}
+@media (min-width:680px){.pickers{grid-template-columns:1fr 1fr}}
+.picker-select{display:flex;flex-direction:column;gap:0.35rem;border:1px solid var(--rule);background:var(--paper);padding:0.85rem 1rem;transition:border-color 0.15s}
+.picker-select:focus-within{border-color:var(--ink)}
+.picker-select .lbl{font-family:var(--mono);font-size:0.66rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin:0}
+.picker-select select{font-family:var(--serif);font-size:1.1rem;font-weight:500;padding:0.15rem 1.6rem 0.15rem 0;background:transparent;border:none;color:var(--ink);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 12px) 60%,calc(100% - 7px) 60%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;width:100%;outline:none}
+.picker-select select:focus{color:var(--ink)}
+.picker-select .hint{font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--muted);margin:0;line-height:1.45}
+.picker-select option{background:var(--paper);color:var(--ink);font-family:var(--sans);font-style:normal}
+:root[data-theme="dark"] .picker-select option{background:var(--paper);color:var(--ink)}
+/* Interpretation captions under tables and panels */
+.interp{margin:0.7rem 0 1.4rem;padding:0.7rem 1rem;background:var(--soft);border-left:3px solid var(--muted);font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--ink);line-height:1.5}
+.interp strong{font-style:normal;font-weight:500;color:var(--terra);font-family:var(--mono);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:0.25rem}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
@@ -190,14 +204,16 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
  <p class="sub">Six scenarios, including one with an exogenous regressor that you can switch on or off to see what X buys you.</p>
 
  <div class="pickers">
-  <div class="picker">
-   <header><span class="label">Series</span><span>6 scenarios</span></header>
-   <div id="dsList" class="options"></div>
-  </div>
-  <div class="picker">
-   <header><span class="label">SARIMAX(p,d,q)(P,D,Q,m)</span><span>9 candidates</span></header>
-   <div id="mdList" class="options"></div>
-  </div>
+  <label class="picker-select">
+   <span class="lbl">Series</span>
+   <select id="dsList" aria-label="Series"></select>
+   <span class="hint" id="dsHint"></span>
+  </label>
+  <label class="picker-select">
+   <span class="lbl">SARIMAX(p, d, q)(P, D, Q)</span>
+   <select id="mdList" aria-label="SARIMAX(p, d, q)(P, D, Q)"></select>
+   <span class="hint" id="mdHint"></span>
+  </label>
  </div>
 
  <div class="exog-toggle">
@@ -212,12 +228,14 @@ footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
  <div class="diff-stack" id="diffStack"></div>
 
  <div class="cv-table">
-  <div class="head"><span>Rolling-origin cross-validation, three candidate hyperparameter sets</span><span id="cvBest"></span></div>
+  <div class="head"><span>In-sample residual SD across rolling train windows</span><span id="cvBest"></span></div>
   <div class="table-scroll cv-scroll"><table>
-   <thead><tr><th>Candidate</th><th>Fold 1 RMSE</th><th>Fold 2 RMSE</th><th>Fold 3 RMSE</th><th>Mean RMSE</th></tr></thead>
+   <thead><tr><th>Candidate</th><th>50% train σ</th><th>67% train σ</th><th>83% train σ</th><th>Mean σ</th></tr></thead>
    <tbody id="cvBody"></tbody>
   </table></div>
  </div>
+
+ <p class="interp" id="cvInterp"></p>
 
  <div class="verdict" id="verdict">
   <div class="label" id="verdictLabel">Verdict</div>
@@ -451,10 +469,12 @@ function genericVerdict(sc,md,useX){
 // ===== State =====
 let curSc=SC[0].id, curMd=MD[0].id, useX=false;
 function buildPickers(){
- document.getElementById('dsList').innerHTML = SC.map(s=>`<button class="opt" data-sc="${s.id}"><span>${s.name}</span><span class="meta">${s.blurb}</span></button>`).join('');
- document.getElementById('mdList').innerHTML = MD.map(m=>`<button class="opt" data-md="${m.id}"><span>${m.name}</span><span class="meta">${m.blurb}</span></button>`).join('');
- document.getElementById('dsList').addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(b){curSc=b.dataset.sc;render();}});
- document.getElementById('mdList').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(b){curMd=b.dataset.md;render();}});
+ const ds=document.getElementById('dsList');
+ ds.innerHTML = SC.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+ ds.addEventListener('change',e=>{curSc=e.target.value;render();});
+ const md=document.getElementById('mdList');
+ md.innerHTML = MD.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+ md.addEventListener('change',e=>{curMd=e.target.value;render();});
  document.getElementById('xOff').addEventListener('click',()=>{useX=false;render();});
  document.getElementById('xOn').addEventListener('click',()=>{useX=true;render();});
 }
@@ -494,23 +514,28 @@ function renderCV(sc, md, withX){
    const trainEnd = minTrain + f*horizon;
    const trainY = sc.data.slice(0,trainEnd);
    const trainX = sc.x?sc.x.slice(0,trainEnd):null;
-   const testY = sc.data.slice(trainEnd, trainEnd+horizon);
    try{
     const fit = fitSARIMAX(trainY, trainX, c.md.p, c.md.d, c.md.q, c.md.P, c.md.D, c.md.Q, sc.m, c.useX);
-    // For evaluation, use mean of last few fits as point forecast (approximation)
-    const lastFits = fit.fit.slice(-Math.min(horizon,fit.fit.length));
-    const fc = [];
-    for(let i=0;i<testY.length;i++){fc.push(lastFits[i%lastFits.length] || mean(trainY));}
-    const errors = testY.map((v,i)=>v-fc[i]);
-    fold.push(rmse(errors));
+    // Use sqrt(sigma2): in-sample residual standard deviation, which differs honestly across models
+    const sigma = isFinite(fit.sigma2) && fit.sigma2 > 0 ? Math.sqrt(fit.sigma2) : NaN;
+    fold.push(sigma);
    } catch(e){fold.push(NaN);}
   }
   const valid = fold.filter(v=>isFinite(v));
-  const meanRMSE = valid.length? valid.reduce((s,v)=>s+v,0)/valid.length : NaN;
-  return {label:c.label, fold, mean:meanRMSE};
+  const meanSigma = valid.length? valid.reduce((s,v)=>s+v,0)/valid.length : NaN;
+  return {label:c.label, fold, mean:meanSigma};
  });
  const best = rows.reduce((b,r)=>(isFinite(r.mean)&&(!isFinite(b.mean)||r.mean<b.mean))?r:b, rows[0]);
- document.getElementById('cvBest').textContent = isFinite(best.mean)? `Best mean RMSE: ${best.label}` : 'Insufficient data for CV';
+ document.getElementById('cvBest').textContent = isFinite(best.mean)? `Best mean σ: ${best.label}` : 'Insufficient data';
+ const ci = document.getElementById('cvInterp');
+ if(ci){
+  const sd = Math.sqrt(variance(sc.data));
+  const bestPct = isFinite(best.mean)? (best.mean/sd*100).toFixed(0) : '—';
+  const curRow = rows.find(r=>r.label===rows[0].label);
+  const gap = isFinite(best.mean) && isFinite(curRow.mean) ? curRow.mean - best.mean : NaN;
+  const gapText = isNaN(gap) || Math.abs(gap) < 0.001 ? 'matches the best' : (gap>0 ? `is ${gap.toFixed(2)} above the best` : `is the best`);
+  ci.innerHTML = `<strong>How to read</strong>σ is the typical one-step-ahead error after the model has learned everything it can from the training window. Smaller is better. The data's own standard deviation is ${sd.toFixed(1)}; the best model here drives σ down to about ${bestPct}% of that, the residual variation the model could not capture. Your selection ${gapText}. A real out-of-sample evaluation needs a forecast loop that re-fits per fold; this table is the in-sample diagnostic for the same rolling windows, which moves with the same intuitions.`;
+ }
  document.getElementById('cvBody').innerHTML = rows.map(r=>{
   const cls = r.label===best.label?'best':'';
   return `<tr class="${cls}"><td>${r.label}</td>${r.fold.map(v=>`<td>${isFinite(v)?v.toFixed(2):'—'}</td>`).join('')}<td>${isFinite(r.mean)?r.mean.toFixed(2):'—'}</td></tr>`;
@@ -519,8 +544,10 @@ function renderCV(sc, md, withX){
 
 function render(){
  const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
- document.querySelectorAll('[data-sc]').forEach(b=>b.classList.toggle('on',b.dataset.sc===curSc));
- document.querySelectorAll('[data-md]').forEach(b=>b.classList.toggle('on',b.dataset.md===curMd));
+ document.getElementById('dsList').value=curSc;
+ document.getElementById('mdList').value=curMd;
+ document.getElementById('dsHint').textContent=sc.blurb;
+ document.getElementById('mdHint').textContent=md.blurb;
  document.getElementById('xOff').classList.toggle('on',!useX);
  document.getElementById('xOn').classList.toggle('on',useX);
  document.getElementById('xAvail').textContent = sc.x ? '— X is available for this series' : '— this series has no X, switch has no effect';

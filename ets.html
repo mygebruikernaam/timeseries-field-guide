@@ -291,7 +291,7 @@ const SC = [
  {id:'air',name:'AirPassengers',blurb:'Monthly international airline passengers, 1949 onward',period:12,data:[112,118,132,129,121,135,148,148,136,119,104,118,115,126,141,135,125,149,170,170,158,133,114,140,145,150,178,163,172,178,199,199,184,162,146,166,171,180,193,181,183,218,230,242,209,191,172,194,196,196,236,235,229,243,264,272,237,211,180,201,204,188,235,227,234,264,302,293,259,229,203,229]},
  {id:'uk',name:'UK electricity demand',blurb:'Quarterly demand, additive seasonality, slow trend',period:4,data:[78.5,67.2,69.4,75.8,80.1,68.4,71.0,77.6,82.5,69.9,72.6,79.4,85.1,71.8,74.6,81.6,87.8,73.6,76.5,84.2,90.4,75.8,78.7,86.5,93.1,77.7,80.8,89.1,95.6,79.7,82.7,91.8,98.2,81.9,84.9,94.2]},
  {id:'beer',name:'Australian beer production',blurb:'Quarterly megalitres, additive seasonality, slight trend',period:4,data:[284,213,227,308,262,228,236,320,272,233,237,313,261,227,250,314,266,228,246,318,260,229,252,317,265,233,254,316,266,233,248,311,256,226,245,302,251,221,243,302]},
- {id:'sparx',name:'Sparx-style engagement',blurb:'Weekly active learners, level + small additive seasonality',period:0,data:[420,425,431,442,438,441,448,455,460,468,474,470,477,481,489,495,498,504,510,513,518,524,529,531,538,542,547,551,558,562,569,572,578,583,587,594]},
+ {id:'newsletter',name:'Newsletter subscribers',blurb:'Weekly subscribers, level with slow additive growth, no seasonal cycle',period:0,data:[420,425,431,442,438,441,448,455,460,468,474,470,477,481,489,495,498,504,510,513,518,524,529,531,538,542,547,551,558,562,569,572,578,583,587,594]},
  {id:'births',name:'US births',blurb:'Daily, weekly cycle on top of slow yearly drift (slice)',period:7,data:[8920,9400,9510,9460,9320,7800,7100,8980,9450,9560,9510,9370,7850,7150,9020,9490,9610,9560,9420,7900,7200,9080,9550,9670,9620,9480,7960,7260,9140,9610,9740,9690,9550,8030,7330,9210,9680,9810,9760,9620,8100,7400]},
  {id:'wiki',name:'Wikipedia pageviews',blurb:'Daily, mostly stable with occasional level shifts',period:0,data:[120,118,122,119,123,121,125,124,128,126,130,129,540,520,535,528,540,532,545,538,542,540,548,545,552,548,210,205,212,208,214,210,216,213,219,215,221,218]},
  {id:'rw',name:'Random walk',blurb:'Lag-1 autocorrelation, no exploitable structure',period:0,data:[100,102,99,103,107,105,108,112,109,113,117,114,118,121,124,121,118,122,127,124,128,125,129,132,135,131,134,138,135,139,142,139,143,146,144,148]},
@@ -506,15 +506,15 @@ const V = {
  'uk|MM':v('wrong','Demand is not compounding by a percentage each period, and seasonal amplitude does not scale with level.',
   null,null,'Multiplicative trend implies grid demand doubling on a fixed cadence, which does not match decades of data.',
   {model:'ETS(A,A) or damped variant',page:'this page',reason:'tracks linear growth and stable seasonal swings, the regulated-utility shape'}),
- 'sparx|AN':v('textbook','Engagement on a learning platform grows roughly linearly with cohort intake, with no seasonal cycle inside the slice.',
-  ['Linear extrapolation matches steady cohort growth','Trend term is well identified across thirty-six points'],
-  ['Will overshoot if the cohort plateaus','Genuine seasonal effects, holidays for instance, will eventually appear and be missed'],
-  'Education platforms typically grow in cohorts, with demand following enrolment more than calendar.'),
- 'sparx|NN':v('workable','Without the trend term, the model tracks the level but its forecast freezes in place.',
+ 'newsletter|AN':v('textbook','Subscriber counts that grow linearly with no seasonal cycle are the textbook ETS(A,N) case. The trend term captures the slope, the level component absorbs week-to-week noise.',
+  ['Linear extrapolation matches steady acquisition','Trend term is well identified across thirty-six observations'],
+  ['Will overshoot if acquisition plateaus','Genuine seasonal effects, like holiday slowdowns, would eventually appear and be missed'],
+  'A common shape for newsletters, podcasts, and SaaS sign-ups in their early growth phase, where the marketing engine produces a roughly constant stream of new subscribers each period.'),
+ 'newsletter|NN':v('workable','Without the trend term, the model tracks the level but its forecast freezes in place.',
   ['No risk of trend overshoot','Robust to short-term noise'],
-  ['Forecasts the wrong gradient, predicting flat where reality has slope','Residuals will show a clear pattern, the diagnostic that this model is wrong'],
+  ['Forecasts the wrong gradient, predicting flat where reality clearly has slope','Residuals will show a clear pattern, the diagnostic signature that this model is wrong'],
   'A safe baseline. Compare against ETS(A,N) to see what the trend term buys you.'),
- 'sparx|MM':v('wrong','Multiplicative trend implies compounding, and the engagement series grows linearly at most. Multiplicative seasonality has no signal here.',
+ 'newsletter|MM':v('wrong','Multiplicative trend implies compounding growth, and the subscriber series grows linearly at most. Multiplicative seasonality has no signal here either, since the data shows no seasonal cycle.',
   null,null,'Forecasts an exponential curve through a roughly linear series, with phantom seasonal swings.',
   {model:'ETS(A,N)',page:'this page',reason:'fits the linear trend without overfitting nonexistent seasonality'}),
  'wiki|NN':v('workable','SES tracks the level and updates after a shift, but slowly, leaving residuals during the transition.',
@@ -560,7 +560,7 @@ function v(cls,reasoning,strengths,weaknesses,example,useInstead){return{classif
 // Generic verdict for combos not pre-baked
 function genericVerdict(scenario,model){
  const sc=scenario.id, mid=model.id;
- const hasTrendInSeries = ['air','beer','uk','sparx','rw','btc'].includes(sc);
+ const hasTrendInSeries = ['air','beer','uk','newsletter','rw','btc'].includes(sc);
  const hasSeasonInSeries = ['air','beer','uk','births'].includes(sc);
  const isMultTrend = ['air'].includes(sc);
  const isMultSeas = ['air'].includes(sc);
