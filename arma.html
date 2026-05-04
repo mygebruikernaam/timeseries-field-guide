@@ -289,14 +289,14 @@ function genWN(n,seed){const r=rng(seed);return Array.from({length:n},()=>10+r()
 function genRW(n,seed){const r=rng(seed);const y=[10];for(let i=1;i<n;i++)y.push(y[i-1]+r()*2);return y;}
 function genTrend(n,seed){const r=rng(seed);return Array.from({length:n},(_,i)=>10+i*0.15+r()*1.2);}
 const SC = [
- {id:'ar1',name:'AR(1) process, φ=0.7',blurb:'Geometric decay in ACF, sharp cutoff in PACF at lag 1',data:genAR1(80,0.7,1),true:'AR(1)'},
- {id:'ar2',name:'AR(2) process, cyclical',blurb:'PACF cuts off at lag 2, ACF oscillates and decays',data:genAR2(80,0.5,-0.4,2),true:'AR(2)'},
- {id:'ma1',name:'MA(1) process, θ=0.6',blurb:'ACF cuts off at lag 1, PACF tails off',data:genMA1(80,0.6,3),true:'MA(1)'},
- {id:'ma2',name:'MA(2) process',blurb:'ACF cuts off at lag 2, PACF tails off',data:genMA2(80,0.5,0.3,4),true:'MA(2)'},
- {id:'arma11',name:'ARMA(1,1) process',blurb:'Both ACF and PACF tail off geometrically',data:genARMA11(80,0.6,0.4,5),true:'ARMA(1,1)'},
- {id:'wn',name:'White noise',blurb:'No autocorrelation at any lag',data:genWN(80,6),true:'none'},
- {id:'rw',name:'Random walk',blurb:'Non-stationary, ACF decays linearly',data:genRW(80,7),true:'non-stationary'},
- {id:'trend',name:'Trended series',blurb:'Non-stationary, deterministic linear trend',data:genTrend(80,8),true:'non-stationary'}
+ {id:'ar1',name:'Unemployment rate, monthly',blurb:'AR(1) shape, simulated. Persistent but mean-reverting around the natural rate. Geometric decay in ACF, sharp cutoff in PACF at lag 1.',data:genAR1(80,0.7,1),true:'AR(1)'},
+ {id:'ar2',name:'Annual sunspot numbers',blurb:'AR(2) shape, simulated. Business-cycle-like oscillation; the canonical example of complex roots in the AR polynomial. PACF cuts off at lag 2, ACF oscillates and decays.',data:genAR2(80,0.5,-0.4,2),true:'AR(2)'},
+ {id:'ma1',name:'Pre-whitened stock returns',blurb:'MA(1) shape, simulated. One-period echo of the previous shock; what daily equity returns look like after AR pre-whitening. ACF cuts off at lag 1, PACF tails off.',data:genMA1(80,0.6,3),true:'MA(1)'},
+ {id:'ma2',name:'Quarterly forecast errors',blurb:'MA(2) shape, simulated. Two-period memory of forecast errors that decays cleanly. ACF cuts off at lag 2, PACF tails off.',data:genMA2(80,0.5,0.3,4),true:'MA(2)'},
+ {id:'arma11',name:'Monthly inflation rate',blurb:'ARMA(1,1) shape, simulated. Persistent month-to-month with one-period innovation memory; what CPI inflation tends to look like in stable economies. Both ACF and PACF tail off geometrically.',data:genARMA11(80,0.6,0.4,5),true:'ARMA(1,1)'},
+ {id:'wn',name:'Roulette returns',blurb:'White noise, simulated. The ideal residual of a well-specified model, or the spin-by-spin payout of a fair wheel. No autocorrelation at any lag.',data:genWN(80,6),true:'none'},
+ {id:'rw',name:'FTSE 100 index level',blurb:'Random walk, simulated. The level of a major equity index has no exploitable structure; tomorrow looks like today plus noise. Non-stationary, ACF decays linearly.',data:genRW(80,7),true:'non-stationary'},
+ {id:'trend',name:'World population, decadal',blurb:'Linear trend, simulated. Real-world series with near-constant growth per period. Non-stationary, deterministic linear trend.',data:genTrend(80,8),true:'non-stationary'}
 ];
 
 // Models
@@ -499,7 +499,7 @@ const V = {
  'ar1|10':v('textbook','PACF cuts off sharply after lag 1, ACF decays geometrically. AR(1) is the textbook fit and AIC will agree.',
   ['Single coefficient captures the persistence','Forecasts converge to the long-run mean as expected','Residuals look like white noise'],
   ['Sensitive to outliers in early observations','Misses higher-order structure if any genuinely exists'],
-  'Hyndman uses simulated AR(1) processes precisely to teach the PACF cutoff signature.'),
+  'Hyndman cites unemployment rates and inflation expectations as canonical AR(1) shapes: anchored to a long-run mean, persistent but mean-reverting.'),
  'ar1|20':v('workable','Adding the second lag gives a slightly better in-sample fit but the second coefficient is small and statistically indistinguishable from zero. AIC may even prefer it; BIC will not.',
   ['Captures any minor lag-2 dependency that AR(1) might miss','Robust if the true order is borderline'],
   ['Likely overfit, the second lag eats noise','BIC penalty will push you back to AR(1)'],
@@ -510,7 +510,7 @@ const V = {
  'ar2|20':v('textbook','PACF cuts off at lag 2, ACF oscillates and decays. AR(2) is the textbook fit for a cyclical autoregressive process.',
   ['Two coefficients capture both the level persistence and the oscillation','Roots of the characteristic polynomial are complex, the source of the cycle','AIC and BIC both favour this order'],
   ['Sensitive to the simulated noise variance','One step ahead forecast cannot anticipate genuine shocks'],
-  'Cyclical economic indicators often show this structure, with AR(2) capturing the rough business cycle.'),
+  'Annual sunspot numbers, dating to Galileo, are the textbook AR(2) example: complex-conjugate roots produce the roughly 11-year cycle without any explicit period parameter.'),
  'ar2|10':v('workable','AR(1) captures the dominant persistence but misses the oscillatory component. Residuals will show lag-2 autocorrelation.',
   ['Simple, parsimonious','Adequate when the cycle is weak'],
   ['Cannot reproduce the oscillation in the forecast','Residual diagnostics will fail Bartlett'],
@@ -518,18 +518,18 @@ const V = {
  'ma1|01':v('textbook','ACF cuts off cleanly after lag 1, PACF tails off geometrically. MA(1) is the textbook moving-average shape.',
   ['Single innovation lag captures the structure','Forecasts converge to the mean within q steps','Residuals look like white noise'],
   ['Cannot capture longer-memory dependencies if they exist','Sensitive to early-period innovations'],
-  'Inventory and short-memory pricing models often follow this exact shape.'),
+  'Daily portfolio returns after AR pre-whitening, or short-memory inventory shocks, follow this exact shape.'),
  'ma1|10':v('wrong','AR(1) tries to model an MA process with autoregression. The residual ACF will retain a clear lag-1 signature.',
   null,null,'You will see a stubborn lag-1 spike in residual ACF, the diagnostic that the wrong family was chosen.',
   {model:'MA(1)',page:'this page',reason:'matches the ACF cutoff and PACF tail-off pattern of this series'}),
  'ma2|02':v('textbook','ACF cuts off at lag 2, PACF tails off. MA(2) is the textbook fit.',
   ['Two innovation lags match the visible cutoff','Forecasts mean-revert within two steps','Captures short-memory structure cleanly'],
   ['Cannot model autoregressive persistence if any exists','Estimation noise can mask the second lag'],
-  'Useful for short-memory market microstructure data where shocks decay within a couple of periods.'),
+  'Useful for quarterly forecast errors and short-memory market microstructure data where shocks decay within a couple of periods.'),
  'arma11|11':v('textbook','Both ACF and PACF tail off geometrically, the textbook ARMA signature. ARMA(1,1) is the parsimonious fit.',
   ['One AR and one MA term capture the mixed dynamics','AIC and BIC typically prefer this over more complex orders','Residuals look like white noise'],
   ['Two-stage estimation can be slightly off compared to MLE','More complex variants will overfit'],
-  'A reminder that mixed models exist, and that diagnostics for both AR and MA families can be unsatisfied at the same time.'),
+  'Inflation rates, real exchange rates, and other persistent macroeconomic series with both autoregressive memory and innovation echoes typically need ARMA(1,1) rather than pure AR or MA.'),
  'arma11|10':v('workable','AR(1) captures the autoregressive part but ignores the MA component. Residual ACF will retain a lag-1 spike.',
   ['Simple model that explains most of the variation','Useful as a baseline'],
   ['Misses the moving-average structure','Residual diagnostics will signal incompleteness'],

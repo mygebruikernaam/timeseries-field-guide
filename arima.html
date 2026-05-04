@@ -275,14 +275,14 @@ function genWN(n,s){const r=rng(s);return Array.from({length:n},()=>10+r()*1.5);
 function genHybrid(n,s){const r=rng(s);const y=[];let v=0;for(let i=0;i<n;i++){v=0.7*v+r()*1.0;y.push(10+i*0.06+v);}return y;}
 
 const SC=[
- {id:'stat',name:'Stationary AR(1)',blurb:'Already stationary, d=0 is correct',data:genStat(80,1),trueD:0,seasonal:false},
- {id:'rw',name:'Random walk',blurb:'Unit root, d=1 differences to white noise',data:genRW(80,2),trueD:1,seasonal:false},
- {id:'trend',name:'Linear trended',blurb:'Deterministic trend, d=1 detrends nicely',data:genTrend(80,3),trueD:1,seasonal:false},
- {id:'shock',name:'Trend with structural break',blurb:'Slope changes mid-series, d=1 with care',data:genTrendShock(80,4),trueD:1,seasonal:false},
- {id:'i2',name:'I(2) integrated process',blurb:'Trend itself drifts, d=2 needed',data:genI2(80,5),trueD:2,seasonal:false},
- {id:'seas',name:'Trend + seasonal',blurb:'Seasonality survives ordinary differencing',data:genSeasonal(80,6),trueD:1,seasonal:true},
- {id:'wn',name:'White noise',blurb:'No structure, d=0 with no AR or MA',data:genWN(80,7),trueD:0,seasonal:false},
- {id:'hybrid',name:'Hybrid trend + AR(1)',blurb:'Linear trend with autoregressive residuals',data:genHybrid(80,8),trueD:1,seasonal:false}
+ {id:'stat',name:'Unemployment rate, monthly',blurb:'AR(1) around a long-run mean, simulated. Persistent but stationary; ADF rejects the unit root. d=0 is correct.',data:genStat(80,1),trueD:0,seasonal:false},
+ {id:'rw',name:'Bitcoin daily close, 2023',blurb:'Random walk, simulated. Asset prices with strong lag-1 persistence; differences look like white noise. Unit root, d=1.',data:genRW(80,2),trueD:1,seasonal:false},
+ {id:'trend',name:'World population, decadal',blurb:'Deterministic linear trend, simulated. Constant growth per period; d=1 detrends cleanly to noise.',data:genTrend(80,3),trueD:1,seasonal:false},
+ {id:'shock',name:'UK retail sales 2018 to 2024',blurb:'Linear trend with a regime shift, simulated. Slope changes around the COVID disruption; d=1 mostly handles it but residuals reveal the break.',data:genTrendShock(80,4),trueD:1,seasonal:false},
+ {id:'i2',name:'Hyperinflationary price index',blurb:'I(2) process, simulated. Price level grows with an accelerating rate; the trend itself drifts. d=2 is needed to reach stationarity.',data:genI2(80,5),trueD:2,seasonal:false},
+ {id:'seas',name:'Monthly airline passengers',blurb:'Linear trend with annual cycle, simulated. The classic Box-Jenkins shape; ordinary differencing handles the trend but leaves the cycle, signalling SARIMA.',data:genSeasonal(80,6),trueD:1,seasonal:true},
+ {id:'wn',name:'Pre-whitened residuals',blurb:'White noise, simulated. The ideal residual of a well-specified model: no structure to exploit. d=0 with no AR or MA.',data:genWN(80,7),trueD:0,seasonal:false},
+ {id:'hybrid',name:'Quarterly UK GDP',blurb:'Linear trend with AR(1) deviations, simulated. The canonical macroeconomic shape: steady growth with autoregressive deviations from trend.',data:genHybrid(80,8),trueD:1,seasonal:false}
 ];
 
 const MD=[
@@ -380,7 +380,7 @@ const V = {
  'rw|010':v('textbook','A random walk has a unit root and no drift, and ARIMA(0,1,0) is exactly that model. Differencing once gives white noise, and the model parameters are zero, which is correct.',
   ['Captures the unit-root structure of the random walk','One-step forecast is the last observed value, the maximum likelihood forecast for a random walk','Multi-step variance grows linearly, the honest uncertainty for an integrated series'],
   ['No memory of any short-term dependency that may exist','Forecasts wander as widely as the data does, and that is the point'],
-  'Hyndman uses ARIMA(0,1,0) as the formal model behind the naive forecaster, the practitioner default for asset prices and aggregate exchange rates.'),
+  'Bitcoin daily close, equity indices, and major exchange rates all behave like random walks; ARIMA(0,1,0) is the formal model behind the naive forecaster used in production for these series.'),
  'rw|110':v('workable','Adding an AR(1) term to the differenced random walk fits a coefficient that is, in expectation, zero. The model is overparameterised but harmless.',
   ['One-step forecast still close to the naive forecaster','Captures any minor dependency in the differenced series'],
   ['AR coefficient on differenced white noise is sampling noise','BIC will prefer ARIMA(0,1,0)'],
@@ -391,14 +391,14 @@ const V = {
  'trend|110':v('textbook','A linear trend with autoregressive residuals is the textbook ARIMA(1,1,0) case. Differencing removes the trend, and a single AR lag captures any remaining persistence.',
   ['Differencing handles the deterministic trend','AR(1) on the differenced series is parsimonious','ADF on the original rejects stationarity, ADF on the differenced does not'],
   ['If the trend has a structural break, a single d=1 differencing leaves a residual'],
-  'Box and Jenkins build their original ARIMA exposition around exactly this trend-plus-AR(1) shape.'),
+  'Box and Jenkins built their original ARIMA exposition around exactly this trend-plus-AR(1) shape; modern macro forecasters reach for it on quarterly GDP and similar trended-with-noise series.'),
  'trend|100':v('wrong','AR(1) without differencing tries to absorb a deterministic trend through a near-unit-root coefficient. Forecasts then drift in the recent direction with poorly calibrated uncertainty.',
   null,null,'Persistent residuals, near-unit-root estimate, and the visible signal that the original series is not stationary.',
   {model:'ARIMA(1,1,0) or ARIMA(0,1,1)',page:'this page',reason:'differencing first removes the trend, then the AR or MA term fits cleanly on what remains'}),
  'i2|012':v('textbook','An I(2) process needs two differences to become stationary. ARIMA(0,2,0) is the formal model.',
   ['Δ² turns the series into white noise','Honest about the structural complexity'],
   ['Forecasts have rapidly growing variance','d=2 is rare in practice and warrants investigation rather than blind fitting'],
-  'Twice-integrated processes turn up in price levels for some emerging markets and in physical sciences time series. Always sanity-check before reaching for d=2.'),
+  'Twice-integrated processes turn up in price levels during hyperinflation episodes, in some emerging-market exchange rates, and in physical sciences time series. Always sanity-check before reaching for d=2.'),
  'i2|010':v('workable','One difference is not enough for an I(2) process. The differenced series still drifts, and ARIMA(0,1,0) leaves visible structure.',
   ['Captures most of the integration','Simpler model, easier to interpret'],
   ['Residual ACF will show slow decay, the textbook signal that more differencing is needed','Multi-step forecasts will systematically miss the level'],
@@ -425,11 +425,11 @@ const V = {
  'shock|110':v('workable','One difference handles most of the trend, but the structural break leaves a residual pattern at the breakpoint. ARIMA(1,1,0) covers most of the variation but a careful analyst would investigate the break.',
   ['Captures the dominant trend behaviour','AR(1) on Δy fits the persistence'],
   ['The structural break leaves a localised residual','A break dummy or piecewise model would fit better'],
-  'A reminder that ARIMA assumes stationary increments. A genuine structural break warrants either a regime-switching model or explicit dummy variables, not more lags.'),
+  'UK retail sales pre and post COVID, US labour force participation around 2008, and similar regime-shifted series warrant a structural-break model or explicit dummy variables, not just more ARIMA lags.'),
  'hybrid|110':v('textbook','Linear trend with AR(1) residuals is the canonical ARIMA(1,1,0) case.',
   ['Differencing removes the deterministic trend','AR(1) captures the autoregressive dependency in the differenced series','ADF on Δy rejects the unit root'],
   ['Sensitive to early-period observations','BIC may prefer the simpler ARIMA(0,1,0) on small samples'],
-  'A frequent macroeconomic shape: GDP-like growth with autoregressive deviations.')
+  'Quarterly UK GDP, US industrial production, and most other trended macroeconomic indicators show this exact shape: steady growth with autoregressive deviations from the trend.')
 };
 function genericVerdict(sc,md){
  const order = `(${md.p},${md.d},${md.q})`;
