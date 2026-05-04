@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETS, Time Series Field Guide</title>
+<meta name="description" content="An editorial walkthrough of the nine Holt-Winters family models, with a verdict on which combination is right or wrong for nine real data shapes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --paper:#FAF6EE; --ink:#1F1B16; --terra:#A8431E; --navy:#1B3B6F;
+ --rule:#E0D9C7; --muted:#6B6256; --soft:#F2ECDC; --warn:#9C5B0F; --ok:#2F5D3F;
+ --serif:'Fraunces',Georgia,'Iowan Old Style',serif;
+ --sans:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;
+ --mono:'IBM Plex Mono',Menlo,Consolas,monospace;
+ --w:64rem;
+}
+:root[data-theme="dark"]{--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}}
+:root[data-theme="dark"] svg [stroke="#1F1B16"]{stroke:var(--ink)}
+:root[data-theme="dark"] svg [fill="#6B6256"]{fill:var(--muted)}
+:root[data-theme="dark"] svg [stroke="#E0D9C7"]{stroke:var(--rule)}
+:root[data-theme="dark"] svg [fill="#F2ECDC"]{fill:var(--soft)}
+:root[data-theme="dark"] svg [stroke="#A8431E"]{stroke:var(--terra)}
+:root[data-theme="dark"] svg [stroke="#1B3B6F"]{stroke:var(--navy)}
+:root[data-theme="dark"] svg [fill="#1F1B16"]{fill:var(--ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) svg [stroke="#1F1B16"]{stroke:var(--ink)}:root:not([data-theme="light"]) svg [fill="#6B6256"]{fill:var(--muted)}:root:not([data-theme="light"]) svg [stroke="#E0D9C7"]{stroke:var(--rule)}:root:not([data-theme="light"]) svg [fill="#F2ECDC"]{fill:var(--soft)}:root:not([data-theme="light"]) svg [stroke="#A8431E"]{stroke:var(--terra)}:root:not([data-theme="light"]) svg [stroke="#1B3B6F"]{stroke:var(--navy)}:root:not([data-theme="light"]) svg [fill="#1F1B16"]{fill:var(--ink)}}
+.theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--muted);cursor:pointer;padding:0.3rem 0.7rem;font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;transition:color 0.15s,border-color 0.15s}
+.theme-toggle:hover{color:var(--ink);border-color:var(--ink)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 1.25rem}
+header.site{padding:2rem 0 1rem;border-bottom:1px solid var(--rule);margin-bottom:2.5rem}
+header.site .row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:1rem}
+header.site .brand{font-family:var(--serif);font-weight:700;font-size:1.4rem;letter-spacing:-0.01em}
+header.site .brand em{font-style:italic;color:var(--terra);font-weight:500}
+header.site nav{display:flex;gap:1.25rem;font-family:var(--mono);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.08em}
+header.site nav a{color:var(--muted);text-decoration:none;padding-bottom:0.2rem;border-bottom:1px solid transparent}
+header.site nav a:hover{color:var(--ink);border-bottom-color:var(--terra)}
+header.site nav a.current{color:var(--ink);border-bottom-color:var(--terra)}
+.kicker{font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--terra);margin-bottom:0.5rem}
+h1.title{font-family:var(--serif);font-weight:700;font-size:clamp(2rem,5vw,3.4rem);line-height:1.05;margin:0 0 0.6rem;letter-spacing:-0.02em}
+h1.title em{font-style:italic;font-weight:500}
+.lede{font-family:var(--serif);font-style:italic;font-size:clamp(1.05rem,2.2vw,1.25rem);color:var(--ink);max-width:42rem;margin:0 0 2rem;font-weight:500}
+section{margin:3rem 0}
+h2.section{font-family:var(--serif);font-weight:700;font-size:1.6rem;margin:0 0 0.4rem;letter-spacing:-0.01em}
+h2.section + p.sub{color:var(--muted);margin:0 0 1.4rem;max-width:38rem}
+/* Intuition toggle */
+.intuition{background:var(--soft);border:1px solid var(--rule);padding:1.4rem;margin:1.4rem 0}
+.intuition h3{font-family:var(--serif);margin:0 0 0.4rem;font-size:1.15rem;font-weight:700}
+.intuition .toggle{display:inline-flex;border:1px solid var(--ink);margin:0.6rem 0 1rem;font-family:var(--mono);font-size:0.78rem}
+.intuition .toggle button{background:transparent;border:none;padding:0.5rem 1rem;cursor:pointer;color:var(--ink);text-transform:uppercase;letter-spacing:0.08em}
+.intuition .toggle button.on{background:var(--ink);color:var(--paper)}
+.intuition .canvas-wrap{background:var(--paper);border:1px solid var(--rule);padding:0.6rem}
+.intuition svg{display:block;width:100%;height:auto}
+.intuition .megaphone-note{font-family:var(--mono);font-size:0.78rem;color:var(--terra);margin-top:0.5rem;display:none}
+.intuition.mult .megaphone-note{display:block}
+/* Pickers */
+.pickers{display:grid;grid-template-columns:1fr;gap:1.4rem;margin-bottom:1.6rem}
+@media (min-width:780px){.pickers{grid-template-columns:1fr 1fr}}
+.picker{border:1px solid var(--rule);background:var(--paper)}
+.picker header{padding:0.9rem 1.1rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline}
+.picker header .label{color:var(--ink)}
+.picker .options{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:0.55rem;padding:0.9rem}
+.opt{background:var(--paper);border:1px solid var(--rule);padding:0.7rem 0.85rem;cursor:pointer;font-family:var(--sans);font-size:0.88rem;text-align:left;line-height:1.3;color:var(--ink);transition:border-color 0.15s,background 0.15s}
+.opt:hover{border-color:var(--ink)}
+.opt.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.opt .meta{display:block;font-family:var(--mono);font-size:0.68rem;color:var(--muted);margin-top:0.2rem;text-transform:uppercase;letter-spacing:0.06em}
+.opt.on .meta{color:var(--soft)}
+/* Display */
+.display{display:grid;grid-template-columns:1fr;gap:1.4rem;align-items:start}
+@media (min-width:980px){.display{grid-template-columns:1.7fr 1fr}}
+.chart-card{border:1px solid var(--rule);background:var(--paper);padding:0;overflow:hidden}
+.chart-card .head{padding:1rem 1.2rem;border-bottom:1px solid var(--rule);background:var(--soft)}
+.chart-card .head h3{margin:0;font-family:var(--serif);font-size:1.15rem;font-weight:700}
+.chart-card .head h3 em{font-style:italic;color:var(--terra);font-weight:500}
+.chart-card .head .meta{font-family:var(--mono);font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:0.25rem}
+.chart-svg-wrap{padding:0.8rem 1.2rem 1.2rem}
+.chart-svg-wrap svg{display:block;width:100%;height:auto;max-height:340px}
+.legend{display:flex;flex-wrap:wrap;gap:1rem;font-family:var(--mono);font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;padding:0.4rem 1.2rem 1rem}
+.legend span{display:inline-flex;align-items:center;gap:0.4rem}
+.legend i{display:inline-block;width:1.1rem;height:0.18rem;background:currentColor}
+.legend .hist{color:var(--ink)}
+.legend .fit{color:var(--terra)}
+.legend .fc{color:var(--navy)}
+.equations{border:1px solid var(--rule);background:var(--paper);padding:1.1rem 1.2rem;font-family:var(--mono);font-size:0.82rem;line-height:1.7}
+.equations h4{font-family:var(--serif);font-size:1rem;margin:0 0 0.6rem;font-weight:700;color:var(--ink)}
+.equations .eq{margin:0 0 0.3rem;color:var(--ink)}
+.equations .eq .lbl{color:var(--muted);font-size:0.76rem;display:inline-block;width:5.5rem}
+.equations .params{margin-top:0.8rem;padding-top:0.6rem;border-top:1px dashed var(--rule);font-size:0.76rem;color:var(--muted)}
+/* Verdict */
+.verdict{margin:2rem 0;border:1px solid var(--ink);background:var(--paper);position:relative}
+.verdict .label{position:absolute;top:-0.7rem;left:1.2rem;background:var(--paper);padding:0 0.6rem;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.16em;color:var(--terra)}
+.verdict .body{padding:1.6rem 1.4rem 1.4rem}
+.verdict.textbook{border-color:var(--ok)}.verdict.textbook .label{color:var(--ok)}
+.verdict.workable{border-color:var(--warn)}.verdict.workable .label{color:var(--warn)}
+.verdict.wrong{border-color:var(--terra)}.verdict.wrong .label{color:var(--terra)}
+.verdict h3{font-family:var(--serif);font-weight:700;font-size:1.4rem;margin:0 0 0.5rem;letter-spacing:-0.01em}
+.verdict h3 em{font-style:italic;font-weight:500}
+.verdict p{margin:0 0 0.8rem;max-width:48rem}
+.verdict .pts{display:grid;grid-template-columns:1fr;gap:0.4rem;margin:0.8rem 0;padding-left:0}
+@media (min-width:680px){.verdict .pts{grid-template-columns:1fr 1fr;gap:0.4rem 1.4rem}}
+.verdict .pts li{list-style:none;padding-left:1.6rem;position:relative;font-size:0.92rem;line-height:1.5}
+.verdict .pts li::before{content:counter(li);counter-increment:li;position:absolute;left:0;top:0.05rem;font-family:var(--mono);font-size:0.72rem;color:var(--muted);width:1.2rem;text-align:right}
+.verdict .pts.strengths{counter-reset:li}
+.verdict .pts.weaknesses{counter-reset:li}
+.verdict .pts h4{grid-column:1/-1;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0.6rem 0 0.2rem;font-weight:500}
+.verdict .pts.strengths h4{color:var(--ok)}
+.verdict .pts.weaknesses h4{color:var(--warn)}
+.verdict .example{border-left:2px solid var(--terra);padding:0.5rem 0 0.5rem 1rem;margin:0.9rem 0;font-style:italic;font-family:var(--serif);font-size:1rem;color:var(--ink)}
+.verdict .instead{margin-top:1rem;padding:0.9rem 1rem;background:var(--soft);font-family:var(--sans);font-size:0.92rem;border-left:3px solid var(--terra)}
+.verdict .instead strong{font-weight:700;color:var(--terra);text-transform:uppercase;font-family:var(--mono);font-size:0.74rem;letter-spacing:0.1em;display:block;margin-bottom:0.25rem}
+/* Hints */
+.hints{margin:3rem 0}
+.hints details{border-top:1px solid var(--rule);padding:0.9rem 0}
+.hints details:last-of-type{border-bottom:1px solid var(--rule)}
+.hints summary{cursor:pointer;font-family:var(--serif);font-weight:500;font-size:1.05rem;list-style:none;padding-right:1.5rem;position:relative;color:var(--ink)}
+.hints summary::-webkit-details-marker{display:none}
+.hints summary::after{content:'+';position:absolute;right:0;top:-0.05rem;font-family:var(--serif);font-size:1.4rem;color:var(--terra);transition:transform 0.2s;line-height:1}
+.hints details[open] summary::after{content:'×';color:var(--ink)}
+.hints details p{margin:0.7rem 0 0;color:var(--ink);max-width:46rem}
+.hints details p em{color:var(--muted);font-style:italic}
+/* Footer */
+footer.site{margin:5rem 0 3rem;padding-top:2rem;border-top:1px solid var(--rule);font-family:var(--mono);font-size:0.78rem;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem}
+footer.site a{color:var(--muted);text-decoration:underline;text-decoration-color:var(--rule)}
+footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
+.byline{font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--ink)}
+@media (max-width:520px){
+ header.site nav{font-size:0.7rem;gap:0.85rem}
+ .opt{font-size:0.84rem;padding:0.6rem 0.7rem}
+ .verdict .body{padding:1.3rem 1.1rem 1.1rem}
+}
+.skip-link{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--paper);padding:0.5rem 1rem;font-family:var(--mono);font-size:0.8rem}
+.skip-link:focus{left:1rem;top:1rem;z-index:10}
+/* ETS 3x3 model matrix */
+.model-matrix{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:0.4rem;padding:0.9rem}
+.model-matrix .corner{}
+.model-matrix .col-header,.model-matrix .row-header{font-family:var(--mono);font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);padding:0.3rem 0.3rem;line-height:1.25}
+.model-matrix .col-header{text-align:center;align-self:end}
+.model-matrix .row-header{text-align:right;display:flex;align-items:center;justify-content:flex-end;padding-right:0.5rem}
+.model-cell{background:var(--paper);border:1px solid var(--rule);padding:0.6rem 0.4rem;cursor:pointer;font-family:var(--mono);font-size:0.84rem;font-weight:500;color:var(--ink);text-align:center;transition:transform 0.1s,box-shadow 0.15s,border-color 0.15s;position:relative;line-height:1.25}
+.model-cell:hover{border-color:var(--ink);transform:translateY(-1px);box-shadow:0 2px 8px rgba(31,27,22,0.08);z-index:2}
+.model-cell.on{outline:2px solid var(--ink);outline-offset:2px;z-index:3}
+.model-cell.textbook{background:color-mix(in srgb,var(--ok) 22%,var(--paper));border-color:var(--ok)}
+.model-cell.workable{background:color-mix(in srgb,var(--warn) 16%,var(--paper));border-color:var(--warn)}
+.model-cell.wrong{background:color-mix(in srgb,var(--terra) 14%,var(--paper));border-color:var(--terra)}
+.model-cell .badge{display:block;font-size:0.58rem;font-weight:400;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-top:0.2rem}
+.model-cell.textbook .badge{color:var(--ok)}
+.model-cell.workable .badge{color:var(--warn)}
+.model-cell.wrong .badge{color:var(--terra)}
+.model-cell::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 0.4rem);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:0.55rem 0.75rem;font-size:0.76rem;font-family:var(--sans);font-weight:400;text-transform:none;letter-spacing:0;white-space:normal;width:max-content;max-width:18rem;line-height:1.45;border-radius:2px;opacity:0;pointer-events:none;transition:opacity 0.15s;z-index:30;text-align:left;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.model-cell:hover::after,.model-cell:focus-visible::after{opacity:1}
+@media (max-width:520px){.model-cell::after{display:none}.model-cell{font-size:0.74rem;padding:0.5rem 0.25rem}.model-matrix .col-header,.model-matrix .row-header{font-size:0.55rem}}
+.verdict .instead a{color:var(--terra);text-decoration:underline;text-decoration-color:var(--terra);font-weight:500}
+.verdict .instead a:hover{color:var(--ink);text-decoration-color:var(--ink)}
+.katex{font-size:1.05em;line-height:1.4}
+.equations .katex{font-size:0.95em}
+.notation .katex{font-size:1em}
+:root[data-theme="dark"] .katex,:root[data-theme="dark"] .katex *{color:var(--ink)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .katex,:root:not([data-theme="light"]) .katex *{color:var(--ink)!important}}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--rule)}
+.table-scroll table{margin:0}
+@media (max-width:600px){
+ .aic-table th,.aic-table td,.cv-table th,.cv-table td{padding:0.5rem 0.7rem;font-size:0.78rem}
+ .notation{padding:1rem;font-size:0.8rem}
+ .notation .eq{margin:0.4rem 0}
+ .notation .eq .lbl{display:block;width:auto;font-size:0.66rem;margin-bottom:0.15rem}
+ .adf-block .body{padding:0.85rem 1rem}
+ .diff-card .head{padding:0.55rem 0.85rem;flex-wrap:wrap;gap:0.3rem}
+ .diff-card .head .meta{font-size:0.66rem}
+ h1.title{font-size:clamp(1.6rem,7vw,2.4rem)}
+ .lede{font-size:1rem}
+ header.site .row{gap:0.6rem}
+ header.site nav{gap:0.7rem;font-size:0.66rem}
+ .picker .options{padding:0.5rem;gap:0.4rem}
+ .opt{padding:0.55rem 0.6rem;font-size:0.82rem}
+ .verdict .body{padding:1.2rem 1rem 1rem}
+ .verdict h3{font-size:1.15rem}
+ .chart-card .head{padding:0.7rem 0.85rem}
+ .chart-svg-wrap{padding:0.55rem 0.85rem 0.85rem}
+ .display{gap:1rem}
+ .pickers{gap:1rem}
+ .acfpacf{grid-template-columns:1fr}
+ .acfpacf > div{border-right:none;border-bottom:1px solid var(--rule)}
+ .acfpacf > div:last-child{border-bottom:none}
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="site">
+ <div class="row">
+  <div class="brand">Time Series <em>Field Guide</em></div>
+  <nav aria-label="Pages">
+   <a href="ets.html" class="current">ETS</a>
+   <a href="arma.html">ARMA</a>
+   <a href="arima.html">ARIMA</a>
+   <a href="sarimax.html">SARIMAX</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">Dark</button>
+ </div>
+</header>
+<main id="main">
+<div class="kicker">Chapter 01 · Exponential smoothing</div>
+<h1 class="title">The nine <em>Holt-Winters</em> models, on real data</h1>
+<p class="lede">A nine by nine taxonomy. Pick a real series, pick a model, read a verdict that tells you whether this is the textbook fit, a workable approximation, or the wrong tool for the job, and what to use instead.</p>
+
+<section class="intuition" id="megaphone">
+ <h3>The megaphone test, additive versus multiplicative seasonality</h3>
+ <p>If the seasonal swings widen as the level rises, the seasonality is multiplicative. If the swings stay roughly the same width regardless of level, additive seasonality fits.</p>
+ <div class="toggle" role="tablist" aria-label="Seasonality lens">
+  <button id="lensAdd" class="on" role="tab" aria-selected="true">Additive</button>
+  <button id="lensMul" role="tab" aria-selected="false">Multiplicative</button>
+ </div>
+ <div class="canvas-wrap"><svg id="megaSvg" viewBox="0 0 600 180" preserveAspectRatio="none" aria-label="Comparison of additive and multiplicative seasonality on the same series"></svg></div>
+ <div class="megaphone-note">Notice the swings widen with the level. That is the megaphone signature of multiplicative seasonality.</div>
+</section>
+
+<section>
+ <h2 class="section">Pick a data shape, pick a model</h2>
+ <p class="sub">Nine real and synthetic series, each chosen because it puts a different ETS variant under the spotlight. The verdict then names one combination that fits and warns about the ones that do not.</p>
+
+ <div class="pickers">
+  <div class="picker">
+   <header><span class="label">Data scenario</span><span id="dsCount">9 scenarios</span></header>
+   <div id="dsList" class="options" role="listbox" aria-label="Data scenarios"></div>
+  </div>
+  <div class="picker">
+   <header><span class="label">ETS variant</span><span>3 trend × 3 seasonality</span></header>
+   <div id="mdList" class="options" role="listbox" aria-label="ETS model variants"></div>
+  </div>
+ </div>
+
+ <div class="display">
+  <div class="chart-card">
+   <div class="head">
+    <h3 id="chartTitle">Pick a scenario and a model</h3>
+    <div class="meta" id="chartMeta">Selection appears here</div>
+   </div>
+   <div class="chart-svg-wrap"><svg id="mainSvg" viewBox="0 0 700 320" preserveAspectRatio="none" aria-label="Series with fit and forecast"></svg></div>
+   <div class="legend"><span class="hist"><i></i>Observed</span><span class="fit"><i></i>In-sample fit</span><span class="fc"><i></i>Forecast</span></div>
+  </div>
+  <aside class="equations" aria-label="Equations and parameters">
+   <h4>Equations</h4>
+   <div id="eqBody"></div>
+   <div class="params" id="paramBody"></div>
+  </aside>
+ </div>
+
+ <div class="verdict" id="verdict">
+  <div class="label" id="verdictLabel">Verdict</div>
+  <div class="body" id="verdictBody"><p>Pick a scenario and a model variant to see the verdict.</p></div>
+ </div>
+</section>
+
+<section class="hints">
+ <h2 class="section">Six things worth knowing</h2>
+ <p class="sub">Click to reveal real-world reasoning behind these data shapes.</p>
+ <details><summary>Why does AirPassengers grow exponentially?</summary><p>Post-war commercial aviation expanded as a percentage of a growing market each year, not by a fixed number of seats. Compounding growth produces exponential trajectories. <em>Use multiplicative trend with multiplicative seasonality, the textbook ETS(M,M) shape.</em></p></details>
+ <details><summary>What is the megaphone test?</summary><p>Plot the series and watch the seasonal swings. If they widen as the level rises, like a megaphone opening to the right, the seasonality is multiplicative. If the swings hold a roughly constant width, additive fits. <em>This is the single fastest way to choose between additive and multiplicative seasonal components.</em></p></details>
+ <details><summary>When does additive trend beat multiplicative?</summary><p>Additive trend assumes a fixed unit increase per period. UK electricity demand or a regulated utility load grows by roughly the same megawatt-hours each year, not by a percentage. Multiplicative trend would over-extrapolate. <em>Use additive trend when growth is roughly linear in the unit you measure.</em></p></details>
+ <details><summary>Why do Wikipedia pageviews show level shifts?</summary><p>Pageviews jump on news events, viral moments, or topic shifts, then settle into a new baseline. ETS treats this as noise and bleeds the shift slowly into the level via the smoothing parameter. <em>If level shifts dominate, ETS will lag. A change-point model or a regression with event indicators is a better tool.</em></p></details>
+ <details><summary>What is a damped trend?</summary><p>The trend component is multiplied by a damping parameter phi smaller than one each period, so projected growth shrinks toward zero in the long run. This prevents implausible long-horizon forecasts. <em>Damping is almost always wise for forecasts more than a few periods ahead.</em></p></details>
+ <details><summary>Why does the verdict for white noise say to use the naive forecaster instead?</summary><p>White noise has no exploitable structure, by definition. Any model that smooths past values cannot beat the mean as a forecaster, and ETS just adds parameters that overfit the noise. <em>Use the mean, the naive last value, or, honestly, do not bother forecasting and budget for the variance.</em></p></details>
+</section>
+
+</main>
+<footer class="site">
+ <div>
+  <div class="byline">By Pierre Sutherland, for the Cambridge PACE 2026 cohort and anyone learning forecasting.</div>
+  <div style="margin-top:0.4rem">Editorial, vanilla, single file. View source, fork it.</div>
+ </div>
+ <div>
+  <a href="arma.html">Next, ARMA →</a>
+ </div>
+</footer>
+</div>
+<script>
+'use strict';
+function pageLink(p){var k={'ets.html':1,'arma.html':1,'arima.html':1,'sarimax.html':1};return k[p]?'<a href="'+p+'">'+p+'</a>':p;}
+(function(){var r=document.documentElement,s=localStorage.getItem('tsfg-theme');if(s)r.dataset.theme=s;})();
+// ===== Datasets, compact representative slices =====
+// Each scenario: id, name, blurb, period (seasonal period m, 0 if none), data array
+const SC = [
+ {id:'air',name:'AirPassengers',blurb:'Monthly international airline passengers, 1949 onward',period:12,data:[112,118,132,129,121,135,148,148,136,119,104,118,115,126,141,135,125,149,170,170,158,133,114,140,145,150,178,163,172,178,199,199,184,162,146,166,171,180,193,181,183,218,230,242,209,191,172,194,196,196,236,235,229,243,264,272,237,211,180,201,204,188,235,227,234,264,302,293,259,229,203,229]},
+ {id:'uk',name:'UK electricity demand',blurb:'Quarterly demand, additive seasonality, slow trend',period:4,data:[78.5,67.2,69.4,75.8,80.1,68.4,71.0,77.6,82.5,69.9,72.6,79.4,85.1,71.8,74.6,81.6,87.8,73.6,76.5,84.2,90.4,75.8,78.7,86.5,93.1,77.7,80.8,89.1,95.6,79.7,82.7,91.8,98.2,81.9,84.9,94.2]},
+ {id:'beer',name:'Australian beer production',blurb:'Quarterly megalitres, additive seasonality, slight trend',period:4,data:[284,213,227,308,262,228,236,320,272,233,237,313,261,227,250,314,266,228,246,318,260,229,252,317,265,233,254,316,266,233,248,311,256,226,245,302,251,221,243,302]},
+ {id:'sparx',name:'Sparx-style engagement',blurb:'Weekly active learners, level + small additive seasonality',period:0,data:[420,425,431,442,438,441,448,455,460,468,474,470,477,481,489,495,498,504,510,513,518,524,529,531,538,542,547,551,558,562,569,572,578,583,587,594]},
+ {id:'births',name:'US births',blurb:'Daily, weekly cycle on top of slow yearly drift (slice)',period:7,data:[8920,9400,9510,9460,9320,7800,7100,8980,9450,9560,9510,9370,7850,7150,9020,9490,9610,9560,9420,7900,7200,9080,9550,9670,9620,9480,7960,7260,9140,9610,9740,9690,9550,8030,7330,9210,9680,9810,9760,9620,8100,7400]},
+ {id:'wiki',name:'Wikipedia pageviews',blurb:'Daily, mostly stable with occasional level shifts',period:0,data:[120,118,122,119,123,121,125,124,128,126,130,129,540,520,535,528,540,532,545,538,542,540,548,545,552,548,210,205,212,208,214,210,216,213,219,215,221,218]},
+ {id:'rw',name:'Random walk',blurb:'Lag-1 autocorrelation, no exploitable structure',period:0,data:[100,102,99,103,107,105,108,112,109,113,117,114,118,121,124,121,118,122,127,124,128,125,129,132,135,131,134,138,135,139,142,139,143,146,144,148]},
+ {id:'noise',name:'White noise',blurb:'No structure, drawn around a stable mean',period:0,data:[50.2,49.8,50.7,49.5,50.9,49.2,51.0,50.3,49.6,50.5,49.9,50.6,50.1,49.4,50.8,50.0,49.7,50.4,49.6,50.9,50.2,49.5,50.7,50.0,49.8,50.6,50.3,49.9,50.4,50.1,49.6,50.8,50.0,49.7,50.5,50.2]},
+ {id:'btc',name:'Bitcoin 2023 close',blurb:'Strong lag-1 autocorrelation, naive territory',period:0,data:[16.5,16.7,17.0,17.2,17.0,17.3,17.6,17.9,18.2,18.5,18.3,18.7,19.0,19.4,19.7,20.1,20.4,20.8,21.2,21.6,21.4,21.8,22.2,22.6,23.0,23.4,23.7,24.1,24.5,24.9,25.3,25.7,26.1,26.5,26.9,27.3]}
+];
+
+// ===== Models, 9 variants =====
+// Trend: N (none), A (additive), M (multiplicative). Seasonality: same.
+const MD = [
+ {id:'NN',trend:'N',seas:'N',name:'Level only, ETS(N,N)',blurb:'Simple exponential smoothing'},
+ {id:'NA',trend:'N',seas:'A',name:'Level + additive seasonality, ETS(N,A)',blurb:'SES with seasonal indices'},
+ {id:'NM',trend:'N',seas:'M',name:'Level + multiplicative seasonality, ETS(N,M)',blurb:'SES with multiplicative seasonality'},
+ {id:'AN',trend:'A',seas:'N',name:'Additive trend, ETS(A,N)',blurb:'Holt linear trend, no seasonality'},
+ {id:'AA',trend:'A',seas:'A',name:'Additive Holt-Winters, ETS(A,A)',blurb:'Linear trend with additive seasonality'},
+ {id:'AM',trend:'A',seas:'M',name:'Mult-seasonal Holt-Winters, ETS(A,M)',blurb:'Linear trend with multiplicative seasonality'},
+ {id:'MN',trend:'M',seas:'N',name:'Multiplicative trend, ETS(M,N)',blurb:'Compounding trend, rare in practice'},
+ {id:'MA',trend:'M',seas:'A',name:'Mult trend + additive seasonality, ETS(M,A)',blurb:'Unusual combination, almost always wrong tool'},
+ {id:'MM',trend:'M',seas:'M',name:'Pure multiplicative, ETS(M,M)',blurb:'AirPassengers archetype'}
+];
+
+// ===== ETS implementation =====
+// Returns {fit, forecast, params}. Uses fixed sensible parameters, no MLE.
+function fitETS(data, trendType, seasType, period){
+ const n=data.length;
+ const alpha=0.4, beta=0.1, gamma=0.2, phi=0.98;
+ const m=(seasType!=='N' && period>1)?period:0;
+ // Initial level: mean of first period or first 4 obs
+ let level = m? avg(data.slice(0,m)) : avg(data.slice(0,Math.min(4,n)));
+ let trend = trendType==='M'? 1 : 0;
+ if(trendType!=='N' && n>4){
+  const half=Math.floor(n/2);
+  const a1=avg(data.slice(0,Math.min(m||4,half)));
+  const a2=avg(data.slice(half,half+Math.min(m||4,n-half)));
+  trend = trendType==='M'? Math.pow(Math.max(a2/a1,0.001),1/half) : (a2-a1)/half;
+ }
+ // Initial seasonal indices
+ const seasIdx = new Array(m).fill(seasType==='M'?1:0);
+ if(m){
+  for(let s=0;s<m;s++){
+   const samples=[];
+   for(let i=s;i<n;i+=m){samples.push(data[i]);}
+   const mean=avg(samples);
+   const overall=avg(data.slice(0,Math.min(2*m,n)));
+   if(seasType==='A') seasIdx[s] = mean - overall;
+   else seasIdx[s] = overall>0 ? mean/overall : 1;
+  }
+ }
+ const fit=[]; const seasArr=seasIdx.slice();
+ for(let t=0;t<n;t++){
+  const sIdx = m? t%m : 0;
+  const s = m? seasArr[sIdx] : (seasType==='M'?1:0);
+  // Forecast (one-step ahead)
+  let forecast;
+  const trendCombined = trendType==='M' ? Math.pow(trend,1) : trend;
+  let levelTrend;
+  if(trendType==='N') levelTrend=level;
+  else if(trendType==='A') levelTrend=level+trend;
+  else levelTrend=level*trend;
+  if(seasType==='N') forecast=levelTrend;
+  else if(seasType==='A') forecast=levelTrend+s;
+  else forecast=levelTrend*s;
+  fit.push(forecast);
+  // Update
+  const y=data[t];
+  let newLevel;
+  if(seasType==='A') newLevel = alpha*(y-s) + (1-alpha)*levelTrend;
+  else if(seasType==='M') newLevel = alpha*(y/Math.max(s,0.001)) + (1-alpha)*levelTrend;
+  else newLevel = alpha*y + (1-alpha)*levelTrend;
+  let newTrend=trend;
+  if(trendType==='A') newTrend = beta*(newLevel-level) + (1-beta)*phi*trend;
+  else if(trendType==='M') newTrend = beta*(newLevel/Math.max(level,0.001)) + (1-beta)*Math.pow(trend,phi);
+  if(m){
+   if(seasType==='A') seasArr[sIdx] = gamma*(y-newLevel) + (1-gamma)*s;
+   else if(seasType==='M') seasArr[sIdx] = gamma*(y/Math.max(newLevel,0.001)) + (1-gamma)*s;
+  }
+  level=newLevel; trend=newTrend;
+ }
+ // Forecast horizon
+ const h = Math.min(12, Math.max(4, Math.floor(n*0.25)));
+ const fc=[];
+ for(let k=1;k<=h;k++){
+  const sIdx = m? (n+k-1)%m : 0;
+  const s = m? seasArr[sIdx] : (seasType==='M'?1:0);
+  let levelTrend;
+  if(trendType==='N') levelTrend=level;
+  else if(trendType==='A') levelTrend=level + trend*sumPhi(phi,k);
+  else levelTrend=level*Math.pow(trend, sumPhi(phi,k));
+  let v;
+  if(seasType==='N') v=levelTrend;
+  else if(seasType==='A') v=levelTrend+s;
+  else v=levelTrend*s;
+  if(!isFinite(v)) v = level;
+  fc.push(v);
+ }
+ return {fit,forecast:fc,params:{alpha,beta,gamma,phi:trendType==='N'?null:phi},level,trend};
+}
+function avg(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function sumPhi(phi,k){let s=0,p=1;for(let i=0;i<k;i++){s+=p;p*=phi;}return s;}
+
+// ===== Chart renderer =====
+function drawChart(svg, data, fit, forecast){
+ const W=700, H=320, padL=42, padR=12, padT=12, padB=28;
+ const innerW=W-padL-padR, innerH=H-padT-padB;
+ const allObs=data.concat(fit).concat(forecast).filter(v=>isFinite(v));
+ const minV=Math.min(...allObs)*0.97, maxV=Math.max(...allObs)*1.03;
+ const span=Math.max(maxV-minV,1e-6);
+ const total=data.length+forecast.length;
+ const x=i=>padL + (innerW*i)/(total-1);
+ const y=v=>padT + innerH - (innerH*(v-minV))/span;
+ let html='';
+ // Axes
+ html+=`<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+innerH}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ html+=`<line x1="${padL}" y1="${padT+innerH}" x2="${padL+innerW}" y2="${padT+innerH}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ // Y ticks
+ for(let i=0;i<=4;i++){
+  const v=minV+span*i/4, py=y(v);
+  html+=`<line x1="${padL-3}" y1="${py}" x2="${padL}" y2="${py}" stroke="#1F1B16" stroke-width="0.7"/>`;
+  html+=`<text x="${padL-6}" y="${py+3}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="10" fill="#6B6256">${formatNum(v)}</text>`;
+  if(i>0&&i<4) html+=`<line x1="${padL}" y1="${py}" x2="${padL+innerW}" y2="${py}" stroke="#E0D9C7" stroke-width="0.5"/>`;
+ }
+ // Forecast region shading
+ const forecastStart = x(data.length-1);
+ html+=`<rect x="${forecastStart}" y="${padT}" width="${padL+innerW-forecastStart}" height="${innerH}" fill="#F2ECDC" opacity="0.6"/>`;
+ // Observed line
+ let obsPath=''; data.forEach((v,i)=>{obsPath+=(i?'L':'M')+x(i)+','+y(v);});
+ html+=`<path d="${obsPath}" fill="none" stroke="#1F1B16" stroke-width="1.6" stroke-linejoin="round"/>`;
+ // Fit line (in-sample)
+ let fitPath=''; fit.forEach((v,i)=>{if(isFinite(v)) fitPath+=(fitPath?'L':'M')+x(i)+','+y(v);});
+ html+=`<path d="${fitPath}" fill="none" stroke="#A8431E" stroke-width="1.4" stroke-dasharray="3 3" stroke-linejoin="round"/>`;
+ // Forecast line
+ let fcPath='';
+ if(forecast.length){
+  const lastObs=data[data.length-1];
+  fcPath=`M${x(data.length-1)},${y(lastObs)}`;
+  forecast.forEach((v,i)=>{if(isFinite(v)) fcPath+=`L${x(data.length+i)},${y(v)}`;});
+ }
+ html+=`<path d="${fcPath}" fill="none" stroke="#1B3B6F" stroke-width="1.8" stroke-linejoin="round"/>`;
+ svg.innerHTML=html;
+}
+function formatNum(v){
+ if(Math.abs(v)>=1000) return (v/1000).toFixed(1)+'k';
+ if(Math.abs(v)>=10) return v.toFixed(0);
+ if(Math.abs(v)>=1) return v.toFixed(1);
+ return v.toFixed(2);
+}
+
+// ===== Megaphone svg =====
+function drawMegaphone(mode){
+ const svg=document.getElementById('megaSvg');
+ const W=600,H=180,padL=18,padR=8,padT=10,padB=22;
+ const iw=W-padL-padR,ih=H-padT-padB;
+ const N=48;
+ const obs=[],adds=[],muls=[];
+ for(let i=0;i<N;i++){
+  const level = 30 + i*1.2;
+  const seas = Math.sin(i*Math.PI/6);
+  obs.push(level + seas*4);
+  adds.push(level + seas*4);
+  muls.push(level * (1 + seas*0.18));
+ }
+ const arr = mode==='mul'?muls:adds;
+ const minV=Math.min(...arr)*0.95, maxV=Math.max(...arr)*1.05;
+ const span=maxV-minV;
+ const x=i=>padL+iw*i/(N-1);
+ const y=v=>padT+ih-(ih*(v-minV))/span;
+ let html='';
+ html+=`<line x1="${padL}" y1="${padT+ih}" x2="${padL+iw}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ html+=`<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ // Trend line (level)
+ let tp='';for(let i=0;i<N;i++){const lv=30+i*1.2;tp+=(i?'L':'M')+x(i)+','+y(lv);}
+ html+=`<path d="${tp}" fill="none" stroke="#1B3B6F" stroke-width="1" stroke-dasharray="2 3"/>`;
+ // Series
+ let p='';arr.forEach((v,i)=>{p+=(i?'L':'M')+x(i)+','+y(v);});
+ html+=`<path d="${p}" fill="none" stroke="#A8431E" stroke-width="1.6" stroke-linejoin="round"/>`;
+ svg.innerHTML=html;
+}
+
+// ===== Verdicts =====
+// Schema: {classification: textbook|workable|wrong, reasoning, strengths[], weaknesses[], example, useInstead?:{model,page,reason}}
+// Verdicts are looked up by SC.id + MD.id key. Fallbacks below cover combos not explicitly listed.
+const V = {
+ 'air|MM':v('textbook','AirPassengers is the canonical multiplicative trend with multiplicative seasonality. Both grow as percentages: traffic compounds and seasonal swings widen with the level.',
+  ['Captures the megaphone widening over time','Forecasts compound rather than adding fixed units','Recognised as the textbook ETS(M,M) example for over fifty years'],
+  ['Sensitive to outliers in the early low-level period','Multiplicative components require strictly positive data'],
+  'Box and Jenkins used this very dataset to illustrate why log transformation, or equivalently multiplicative components, is essential for compounding traffic.'),
+ 'air|AA':v('workable','Linear trend with additive seasonality fits the early years well and degrades in the later years as the megaphone effect grows.',
+  ['Numerically stable, no positivity constraint','Easier to explain to a reader who has just met Holt-Winters'],
+  ['Underestimates seasonal swings in the high-level years','Forecasts the wrong shape of variability into the future'],
+  'Useful as a baseline against ETS(M,M), to show why the comparison matters.'),
+ 'air|NN':v('wrong','Simple exponential smoothing has neither the trend nor the seasonal component this series clearly contains.',
+  null,null,'Forecasts a flat line through a series that is doubling and oscillating annually.',
+  {model:'ETS(M,M)',page:'this page',reason:'matches the compounding trend and widening seasonal swings exactly'}),
+ 'beer|AA':v('textbook','Australian beer production is the textbook additive Holt-Winters case: a slow linear trend in megalitres with quarterly swings of roughly constant amplitude.',
+  ['Quarterly amplitude is stable across decades','Trend is slow enough that linear extrapolation is reasonable','Verifiable on the public Australian Bureau of Statistics record'],
+  ['Late-year deceleration of trend invites adding damping','Q4 surge can vary in unusual years and the model will lag'],
+  'Hyndman uses this exact series in Forecasting Principles and Practice to motivate ETS(A,A,A).'),
+ 'beer|NA':v('workable','Without trend, the model still tracks the seasonal pattern but lets the slow decline drift the level slowly.',
+  ['Captures the four-quarter rhythm','Stable when the trend is genuinely flat'],
+  ['Lags the slow downward drift in beer production after 1980','Loses the predictability that the trend term provides'],
+  'A reasonable choice if you genuinely cannot see a trend, but the residuals will tell you it is missing.'),
+ 'beer|NN':v('wrong','SES collapses the seasonality into the level, so the chart shows the average instead of the four-quarter cycle.',
+  null,null,'A flat line through a clearly oscillating series. Q4 spikes are smoothed out of existence.',
+  {model:'ETS(A,A) or ETS(A,Ad,A)',page:'this page',reason:'adds the linear trend and additive seasonal indices the data clearly shows'}),
+ 'beer|MM':v('wrong','Multiplicative components apply percentage scaling. Beer production does not compound, and the seasonal swings have a stable absolute size.',
+  null,null,'Forecasts that exaggerate Q4 spikes in proportion to a level that itself never compounded.',
+  {model:'ETS(A,A)',page:'this page',reason:'matches additive trend and additive seasonality, the actual structure'}),
+ 'uk|AA':v('textbook','UK electricity demand has slow linear growth and fixed-megawatt-hour seasonal swings, the additive textbook case.',
+  ['Quarterly amplitude is stable','Linear trend matches the regulated-utility growth pattern','Forecasts in the right unit'],
+  ['Long-horizon forecasts will overshoot without damping','Recent demand-flexibility behaviour is not captured'],
+  'Energy planners use this shape to anticipate winter peaks and confirm capacity reserves.'),
+ 'uk|MM':v('wrong','Demand is not compounding by a percentage each period, and seasonal amplitude does not scale with level.',
+  null,null,'Multiplicative trend implies grid demand doubling on a fixed cadence, which does not match decades of data.',
+  {model:'ETS(A,A) or damped variant',page:'this page',reason:'tracks linear growth and stable seasonal swings, the regulated-utility shape'}),
+ 'sparx|AN':v('textbook','Engagement on a learning platform grows roughly linearly with cohort intake, with no seasonal cycle inside the slice.',
+  ['Linear extrapolation matches steady cohort growth','Trend term is well identified across thirty-six points'],
+  ['Will overshoot if the cohort plateaus','Genuine seasonal effects, holidays for instance, will eventually appear and be missed'],
+  'Education platforms typically grow in cohorts, with demand following enrolment more than calendar.'),
+ 'sparx|NN':v('workable','Without the trend term, the model tracks the level but its forecast freezes in place.',
+  ['No risk of trend overshoot','Robust to short-term noise'],
+  ['Forecasts the wrong gradient, predicting flat where reality has slope','Residuals will show a clear pattern, the diagnostic that this model is wrong'],
+  'A safe baseline. Compare against ETS(A,N) to see what the trend term buys you.'),
+ 'sparx|MM':v('wrong','Multiplicative trend implies compounding, and the engagement series grows linearly at most. Multiplicative seasonality has no signal here.',
+  null,null,'Forecasts an exponential curve through a roughly linear series, with phantom seasonal swings.',
+  {model:'ETS(A,N)',page:'this page',reason:'fits the linear trend without overfitting nonexistent seasonality'}),
+ 'wiki|NN':v('workable','SES tracks the level and updates after a shift, but slowly, leaving residuals during the transition.',
+  ['Stable through the steady periods between shifts','Will eventually adapt to the new level'],
+  ['Lags badly through the level shifts themselves','Treats step changes as noise rather than as events'],
+  'Wikipedia pageviews jump on news events. SES eventually catches up but you forecast through the change badly.'),
+ 'wiki|AA':v('wrong','Adding a trend to data dominated by step changes invents a slope where none exists, then forecasts that slope.',
+  null,null,'After a single level shift, the additive trend reads it as growth and projects forward dangerously.',
+  {model:'change-point detection or regression with event indicators',page:'beyond this guide',reason:'level shifts are events, not slow trends, and need to be modelled as such'}),
+ 'rw|NN':v('workable','SES is the closest ETS member to the naive forecaster on a random walk, where the next value is essentially the previous one.',
+  ['One-step-ahead forecasts approach the naive lag-1 prediction','Robust to the unbounded variance growth'],
+  ['Multi-step forecasts flatten quickly, missing the random walk structure','Cannot capture the dependency that a model on differences could'],
+  'Bitcoin closing prices in many years behave like a random walk. SES is the safe baseline.',
+  {model:'naive forecaster',page:'a one-line baseline',reason:'on a true random walk, any smoother adds noise without value'}),
+ 'noise|NN':v('workable','SES on white noise converges to the mean, which is the optimal one-step forecast for noise.',
+  ['Statistically the right answer for white noise','Honest about the lack of structure'],
+  ['Adds parameters where none are needed, the mean would do','Multi-step forecasts overcommit to one direction'],
+  'White noise is, by definition, the residual of a properly fit model. If your data looks like this you have either won or you have nothing to model.',
+  {model:'the mean of the series',page:'no model required',reason:'with no exploitable structure, the mean is the maximum likelihood forecast'}),
+ 'noise|AA':v('wrong','Trend and seasonality on white noise overfits, finding patterns the data does not contain.',
+  null,null,'A confident forecast in some direction, manufactured from sampling fluctuations.',
+  {model:'the mean',page:'no model required',reason:'fitting structure to noise is the textbook overfit'}),
+ 'btc|NN':v('textbook','Asset prices with strong lag-1 autocorrelation are well approximated by SES with alpha close to one, equivalent to the naive forecaster.',
+  ['Hugs the previous value, which is the best one-step forecast on a random walk','No false confidence about trend or cycle'],
+  ['Multi-step forecasts flatten, losing the variance of a real walk','Crisis episodes will produce large lagged errors'],
+  'Hyndman cites Bitcoin and other random walks as cases where SES with alpha near one is the practical choice.'),
+ 'btc|AA':v('wrong','A trend term in a random walk hallucinates direction. The model picks up whichever way the recent walk drifted and projects it.',
+  null,null,'A confident upward or downward forecast based on a chance segment of an essentially trendless series.',
+  {model:'SES with alpha near one, or naive',page:'this page',reason:'reflects the random walk structure honestly without inventing a trend'}),
+ 'births|NA':v('textbook','US births have a clear seven-day cycle, fewer on weekends, more on weekdays. Without a strong trend in the slice, ETS(N,A) captures the pattern cleanly.',
+  ['Locks onto the weekly rhythm in a few cycles','Stable level estimate across the slice'],
+  ['Misses any longer cycle, like yearly seasonality, that the slice does not contain','Linear trend would actually help across larger windows'],
+  'Hospitals and obstetric services rely on this exact shape for staffing rotas.'),
+ 'births|NN':v('wrong','Without a seasonal component, SES averages weekdays and weekends together and forecasts a flat line in the middle.',
+  null,null,'Predicts that every day will see roughly the same births, smoothing away the weekend drop entirely.',
+  {model:'ETS(N,A) or ETS(A,A)',page:'this page',reason:'adds the additive weekly seasonality the data clearly shows'}),
+ 'births|MM':v('wrong','Multiplicative seasonality scales swings with the level. The births series has stable absolute swings between weekdays and weekends, not percentage swings.',
+  null,null,'Inflates the weekend drop disproportionately when the underlying level is high.',
+  {model:'ETS(N,A)',page:'this page',reason:'additive seasonality matches the constant absolute weekly cycle'})
+};
+function v(cls,reasoning,strengths,weaknesses,example,useInstead){return{classification:cls,reasoning,strengths,weaknesses,example,useInstead:useInstead||null};}
+
+// Generic verdict for combos not pre-baked
+function genericVerdict(scenario,model){
+ const sc=scenario.id, mid=model.id;
+ const hasTrendInSeries = ['air','beer','uk','sparx','rw','btc'].includes(sc);
+ const hasSeasonInSeries = ['air','beer','uk','births'].includes(sc);
+ const isMultTrend = ['air'].includes(sc);
+ const isMultSeas = ['air'].includes(sc);
+ const trendT=model.trend, seasT=model.seas;
+ // Mismatch detection
+ const trendMismatch = (trendT!=='N' && !hasTrendInSeries) || (trendT==='N' && hasTrendInSeries);
+ const seasMismatch = (seasT!=='N' && !hasSeasonInSeries) || (seasT==='N' && hasSeasonInSeries);
+ const wrongMultSeas = (seasT==='M' && !isMultSeas && hasSeasonInSeries);
+ const wrongMultTrend = (trendT==='M' && !isMultTrend && hasTrendInSeries);
+ if(trendMismatch || seasMismatch || wrongMultSeas || wrongMultTrend){
+  const reasons=[];
+  if(trendT!=='N' && !hasTrendInSeries) reasons.push('the series has no trend, the trend term will overfit');
+  if(trendT==='N' && hasTrendInSeries) reasons.push('the series has a clear trend, omitting it forces forecasts to flatten');
+  if(seasT!=='N' && !hasSeasonInSeries) reasons.push('the series has no seasonal cycle, seasonal indices will fit noise');
+  if(seasT==='N' && hasSeasonInSeries) reasons.push('the series has a clear seasonal cycle, omitting it averages the swings into the level');
+  if(wrongMultSeas) reasons.push('multiplicative seasonality is wrong here, the swings are stable in absolute terms not percentage terms');
+  if(wrongMultTrend) reasons.push('multiplicative trend implies compounding growth, this series is at most linear');
+  // Suggest an alternative within ETS
+  let alt='ETS(';
+  alt += hasTrendInSeries? (isMultTrend?'M':'A') : 'N';
+  alt += ',';
+  alt += hasSeasonInSeries? (isMultSeas?'M':'A') : 'N';
+  alt += ')';
+  return v('wrong',
+   'This combination misreads the data shape: '+reasons.join(', and ')+'.',
+   null,null,
+   `Diagnostic residuals would show a structural pattern, the textbook signal that ${model.name} is the wrong tool here.`,
+   {model:alt,page:'this page',reason:'matches the trend and seasonal structure that this series actually has'});
+ }
+ // Otherwise workable
+ return v('workable',
+  `${model.name} is a defensible choice for ${scenario.name}. The components match what the series shows, with no glaring mismatch.`,
+  ['Components align with the visible structure','Smoothing parameters at sensible defaults'],
+  ['Without parameter tuning the fit will be approximate, not optimal','A neighbouring variant might fit slightly better'],
+  `Honest workable fit. Compare against neighbouring variants in the grid to see whether a different trend or seasonality refinement helps.`);
+}
+
+// ===== State and rendering =====
+let curSc = SC[0].id, curMd = MD[0].id;
+function buildPickers(){
+ const dsList=document.getElementById('dsList');
+ dsList.innerHTML = SC.map(s=>`<button class="opt" data-sc="${s.id}" role="option" aria-selected="false"><span>${s.name}</span><span class="meta">${s.blurb}</span></button>`).join('');
+ dsList.addEventListener('click',e=>{const b=e.target.closest('[data-sc]'); if(b){curSc=b.dataset.sc; render();}});
+ // ETS model picker as 3x3 matrix
+ const mdList=document.getElementById('mdList');
+ mdList.classList.remove('options');
+ mdList.classList.add('model-matrix');
+ const trends=[['N','No trend'],['A','Additive trend'],['M','Multiplic. trend']];
+ const seasons=[['N','No seas.'],['A','Additive seas.'],['M','Multiplic. seas.']];
+ let html='<div class="corner"></div>';
+ seasons.forEach(([s,sl])=>html+=`<div class="col-header">${sl}</div>`);
+ trends.forEach(([t,tl])=>{
+  html+=`<div class="row-header">${tl}</div>`;
+  seasons.forEach(([s,sl])=>{
+   html+=`<button class="model-cell" data-md="${t+s}" role="option" aria-selected="false" data-tip="" aria-label="ETS ${t},${s}">ETS(${t},${s})<span class="badge"></span></button>`;
+  });
+ });
+ mdList.innerHTML=html;
+ mdList.addEventListener('click',e=>{const b=e.target.closest('[data-md]'); if(b){curMd=b.dataset.md; render();}});
+}
+function render(){
+ const sc=SC.find(s=>s.id===curSc); const md=MD.find(m=>m.id===curMd);
+ // Selection state for scenario list
+ document.querySelectorAll('[data-sc]').forEach(b=>{b.classList.toggle('on',b.dataset.sc===curSc);b.setAttribute('aria-selected',b.dataset.sc===curSc);});
+ // Color each cell in the model matrix by its verdict for the current scenario; mark current selection
+ document.querySelectorAll('.model-cell').forEach(cell=>{
+  const cellMd=MD.find(m=>m.id===cell.dataset.md);
+  const cellVerdict=V[curSc+'|'+cellMd.id] || genericVerdict(sc,cellMd);
+  cell.classList.remove('textbook','workable','wrong','on');
+  cell.classList.add(cellVerdict.classification==='wrong'?'wrong':cellVerdict.classification);
+  if(cellMd.id===curMd){cell.classList.add('on');cell.setAttribute('aria-selected','true');} else {cell.setAttribute('aria-selected','false');}
+  const badge=cell.querySelector('.badge');
+  if(badge) badge.textContent=cellVerdict.classification==='wrong'?'Wrong tool':cellVerdict.classification==='textbook'?'Textbook':'Workable';
+  const firstSentence=(cellVerdict.reasoning||'').split(/\.\s/)[0]+'.';
+  cell.setAttribute('data-tip',cellMd.name+'. '+firstSentence);
+ });
+ // Title
+ document.getElementById('chartTitle').innerHTML = `${sc.name} <em>×</em> ${md.name}`;
+ document.getElementById('chartMeta').textContent = `n=${sc.data.length} · period=${sc.period||'none'} · α=0.4, β=0.1, γ=0.2`;
+ // Fit
+ const result = fitETS(sc.data, md.trend, md.seas, sc.period);
+ drawChart(document.getElementById('mainSvg'), sc.data, result.fit, result.forecast);
+ // Equations
+ renderEquations(md, result);
+ // Verdict
+ const key = sc.id+'|'+md.id;
+ const verdict = V[key] || genericVerdict(sc,md);
+ renderVerdict(verdict);
+}
+function renderEquations(md,result){
+ const eqEl=document.getElementById('eqBody');
+ const T = md.trend, S = md.seas;
+ const lines=[];
+ if(T==='N'&&S==='N'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t$']);
+  lines.push(['Level','$\\ell_t = \\alpha\\,y_t + (1-\\alpha)\\,\\ell_{t-1}$']);
+ } else if(T==='A'&&S==='N'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t + h\\,b_t$']);
+  lines.push(['Level','$\\ell_t = \\alpha\\,y_t + (1-\\alpha)(\\ell_{t-1} + b_{t-1})$']);
+  lines.push(['Trend','$b_t = \\beta(\\ell_t - \\ell_{t-1}) + (1-\\beta)\\,\\phi\\,b_{t-1}$']);
+ } else if(T==='M'&&S==='N'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t\\,b_t^{h}$']);
+  lines.push(['Level','$\\ell_t = \\alpha\\,y_t + (1-\\alpha)\\,\\ell_{t-1} b_{t-1}$']);
+  lines.push(['Trend','$b_t = \\beta(\\ell_t / \\ell_{t-1}) + (1-\\beta)\\,b_{t-1}^{\\phi}$']);
+ } else if(T==='N'&&S==='A'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t + s_{t+h-m}$']);
+  lines.push(['Level','$\\ell_t = \\alpha(y_t - s_{t-m}) + (1-\\alpha)\\,\\ell_{t-1}$']);
+  lines.push(['Season','$s_t = \\gamma(y_t - \\ell_t) + (1-\\gamma)\\,s_{t-m}$']);
+ } else if(T==='A'&&S==='A'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t + h\\,b_t + s_{t+h-m}$']);
+  lines.push(['Level','$\\ell_t = \\alpha(y_t - s_{t-m}) + (1-\\alpha)(\\ell_{t-1} + b_{t-1})$']);
+  lines.push(['Trend','$b_t = \\beta(\\ell_t - \\ell_{t-1}) + (1-\\beta)\\,\\phi\\,b_{t-1}$']);
+  lines.push(['Season','$s_t = \\gamma(y_t - \\ell_t) + (1-\\gamma)\\,s_{t-m}$']);
+ } else if(T==='N'&&S==='M'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t\\,s_{t+h-m}$']);
+  lines.push(['Level','$\\ell_t = \\alpha(y_t / s_{t-m}) + (1-\\alpha)\\,\\ell_{t-1}$']);
+  lines.push(['Season','$s_t = \\gamma(y_t / \\ell_t) + (1-\\gamma)\\,s_{t-m}$']);
+ } else if(T==='A'&&S==='M'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = (\\ell_t + h\\,b_t)\\,s_{t+h-m}$']);
+  lines.push(['Level','$\\ell_t = \\alpha(y_t / s_{t-m}) + (1-\\alpha)(\\ell_{t-1} + b_{t-1})$']);
+  lines.push(['Trend','$b_t = \\beta(\\ell_t - \\ell_{t-1}) + (1-\\beta)\\,\\phi\\,b_{t-1}$']);
+  lines.push(['Season','$s_t = \\gamma\\bigl(y_t / (\\ell_{t-1} + b_{t-1})\\bigr) + (1-\\gamma)\\,s_{t-m}$']);
+ } else if(T==='M'&&S==='A'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t\\,b_t^{h} + s_{t+h-m}$']);
+  lines.push(['Note','rare combination, see verdict']);
+ } else if(T==='M'&&S==='M'){
+  lines.push(['Forecast','$\\hat{y}_{t+h} = \\ell_t\\,b_t^{h}\\,s_{t+h-m}$']);
+  lines.push(['Level','$\\ell_t = \\alpha(y_t / s_{t-m}) + (1-\\alpha)\\,\\ell_{t-1} b_{t-1}$']);
+  lines.push(['Trend','$b_t = \\beta(\\ell_t / \\ell_{t-1}) + (1-\\beta)\\,b_{t-1}$']);
+  lines.push(['Season','$s_t = \\gamma(y_t / \\ell_t) + (1-\\gamma)\\,s_{t-m}$']);
+ }
+ eqEl.innerHTML = lines.map(([lbl,eq])=>`<div class="eq"><span class="lbl">${lbl}</span>${eq}</div>`).join('');
+ if(window.renderMathInElement){try{renderMathInElement(eqEl,{delimiters:[{left:'$',right:'$',display:false}],throwOnError:false});}catch(e){}}
+ const p=result.params;
+ const phiText = p.phi!==null ? `φ=${p.phi}` : '';
+ document.getElementById('paramBody').textContent = `α=${p.alpha}, β=${p.beta}, γ=${p.gamma}${phiText?', '+phiText:''}, fixed defaults, no MLE`;
+}
+function renderVerdict(v){
+ const root=document.getElementById('verdict');
+ root.className = 'verdict '+(v.classification==='wrong'?'wrong':v.classification);
+ const lblText = v.classification==='textbook'?'Textbook fit':v.classification==='workable'?'Workable, with caveats':'Wrong tool';
+ document.getElementById('verdictLabel').textContent = lblText;
+ const sc = SC.find(s=>s.id===curSc), md = MD.find(m=>m.id===curMd);
+ let h=`<h3>${sc.name} <em>with</em> ${md.name}</h3>`;
+ h+=`<p>${v.reasoning}</p>`;
+ if(v.strengths){
+  h+=`<ul class="pts strengths"><h4>Strengths</h4>${v.strengths.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ }
+ if(v.weaknesses){
+  h+=`<ul class="pts weaknesses"><h4>Weaknesses</h4>${v.weaknesses.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ }
+ if(v.example){
+  h+=`<div class="example">${v.example}</div>`;
+ }
+ if(v.useInstead){
+  h+=`<div class="instead"><strong>Use instead</strong>${v.useInstead.model}, on ${pageLink(v.useInstead.page)}, because ${v.useInstead.reason}.</div>`;
+ }
+ document.getElementById('verdictBody').innerHTML=h;
+}
+
+// ===== Megaphone toggle =====
+document.getElementById('lensAdd').addEventListener('click',()=>setLens('add'));
+document.getElementById('lensMul').addEventListener('click',()=>setLens('mul'));
+function setLens(mode){
+ const wrap=document.getElementById('megaphone');
+ const a=document.getElementById('lensAdd'), m=document.getElementById('lensMul');
+ wrap.classList.toggle('mult',mode==='mul');
+ a.classList.toggle('on',mode==='add'); m.classList.toggle('on',mode==='mul');
+ a.setAttribute('aria-selected',mode==='add'); m.setAttribute('aria-selected',mode==='mul');
+ drawMegaphone(mode);
+}
+
+// Init
+buildPickers();
+drawMegaphone('add');
+render();
+(function(){var r=document.documentElement;function isDark(){return r.dataset.theme==='dark'||(r.dataset.theme!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);}var b=document.getElementById('themeToggle');if(!b)return;b.textContent=isDark()?'Light':'Dark';b.addEventListener('click',function(){var n=isDark()?'light':'dark';r.dataset.theme=n;localStorage.setItem('tsfg-theme',n);b.textContent=n==='dark'?'Light':'Dark';});})();
+</script>
+</body>
+</html>

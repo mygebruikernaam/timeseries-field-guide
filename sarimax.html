@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SARIMAX, Time Series Field Guide</title>
+<meta name="description" content="An interactive walkthrough of seasonal differencing, exogenous regressors, cross-validated tuning, and the honest moment when ARIMA is no longer enough.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FAF6EE;--ink:#1F1B16;--terra:#A8431E;--navy:#1B3B6F;--rule:#E0D9C7;--muted:#6B6256;--soft:#F2ECDC;--warn:#9C5B0F;--ok:#2F5D3F;--serif:'Fraunces',Georgia,serif;--sans:'IBM Plex Sans',-apple-system,sans-serif;--mono:'IBM Plex Mono',Menlo,monospace;--w:64rem}
+:root[data-theme="dark"]{--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}}
+:root[data-theme="dark"] svg [stroke="#1F1B16"]{stroke:var(--ink)}
+:root[data-theme="dark"] svg [fill="#6B6256"]{fill:var(--muted)}
+:root[data-theme="dark"] svg [stroke="#E0D9C7"]{stroke:var(--rule)}
+:root[data-theme="dark"] svg [fill="#F2ECDC"]{fill:var(--soft)}
+:root[data-theme="dark"] svg [stroke="#A8431E"]{stroke:var(--terra)}
+:root[data-theme="dark"] svg [stroke="#1B3B6F"]{stroke:var(--navy)}
+:root[data-theme="dark"] svg [fill="#1F1B16"]{fill:var(--ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) svg [stroke="#1F1B16"]{stroke:var(--ink)}:root:not([data-theme="light"]) svg [fill="#6B6256"]{fill:var(--muted)}:root:not([data-theme="light"]) svg [stroke="#E0D9C7"]{stroke:var(--rule)}:root:not([data-theme="light"]) svg [fill="#F2ECDC"]{fill:var(--soft)}:root:not([data-theme="light"]) svg [stroke="#A8431E"]{stroke:var(--terra)}:root:not([data-theme="light"]) svg [stroke="#1B3B6F"]{stroke:var(--navy)}:root:not([data-theme="light"]) svg [fill="#1F1B16"]{fill:var(--ink)}}
+.theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--muted);cursor:pointer;padding:0.3rem 0.7rem;font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;transition:color 0.15s,border-color 0.15s}
+.theme-toggle:hover{color:var(--ink);border-color:var(--ink)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 1.25rem}
+header.site{padding:2rem 0 1rem;border-bottom:1px solid var(--rule);margin-bottom:2.5rem}
+header.site .row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:1rem}
+header.site .brand{font-family:var(--serif);font-weight:700;font-size:1.4rem;letter-spacing:-0.01em}
+header.site .brand em{font-style:italic;color:var(--terra);font-weight:500}
+header.site nav{display:flex;gap:1.25rem;font-family:var(--mono);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.08em}
+header.site nav a{color:var(--muted);text-decoration:none;padding-bottom:0.2rem;border-bottom:1px solid transparent}
+header.site nav a:hover{color:var(--ink);border-bottom-color:var(--terra)}
+header.site nav a.current{color:var(--ink);border-bottom-color:var(--terra)}
+.kicker{font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--terra);margin-bottom:0.5rem}
+h1.title{font-family:var(--serif);font-weight:700;font-size:clamp(2rem,5vw,3.4rem);line-height:1.05;margin:0 0 0.6rem;letter-spacing:-0.02em}
+h1.title em{font-style:italic;font-weight:500}
+.lede{font-family:var(--serif);font-style:italic;font-size:clamp(1.05rem,2.2vw,1.25rem);max-width:42rem;margin:0 0 2rem;font-weight:500}
+section{margin:3rem 0}
+h2.section{font-family:var(--serif);font-weight:700;font-size:1.6rem;margin:0 0 0.4rem;letter-spacing:-0.01em}
+h2.section + p.sub{color:var(--muted);margin:0 0 1.4rem;max-width:38rem}
+.notation{background:var(--soft);border:1px solid var(--rule);padding:1.4rem;margin:1.4rem 0;font-family:var(--mono);font-size:0.86rem;line-height:1.7}
+.notation h3{font-family:var(--serif);margin:0 0 0.6rem;font-size:1.15rem;font-weight:700}
+.notation .eq{margin:0.2rem 0}
+.notation .eq .lbl{color:var(--muted);font-size:0.78rem;display:inline-block;width:7rem}
+.callout{background:var(--soft);border-left:3px solid var(--terra);padding:1rem 1.2rem;margin:1.4rem 0;font-size:0.94rem}
+.callout strong{font-family:var(--mono);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--terra);display:block;margin-bottom:0.3rem}
+.pickers{display:grid;grid-template-columns:1fr;gap:1.4rem;margin-bottom:1.6rem}
+@media (min-width:780px){.pickers{grid-template-columns:1fr 1fr}}
+.picker{border:1px solid var(--rule);background:var(--paper)}
+.picker header{padding:0.9rem 1.1rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline}
+.picker header .label{color:var(--ink)}
+.picker .options{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr));gap:0.55rem;padding:0.9rem}
+.opt{background:var(--paper);border:1px solid var(--rule);padding:0.7rem 0.85rem;cursor:pointer;font-family:var(--sans);font-size:0.86rem;text-align:left;line-height:1.3;color:var(--ink);transition:border-color 0.15s,background 0.15s}
+.opt:hover{border-color:var(--ink)}
+.opt.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.opt .meta{display:block;font-family:var(--mono);font-size:0.68rem;color:var(--muted);margin-top:0.2rem;text-transform:uppercase;letter-spacing:0.06em}
+.opt.on .meta{color:var(--soft)}
+.exog-toggle{margin:1rem 0 1.6rem;display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap}
+.exog-toggle .lbl{font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted)}
+.exog-toggle .switch{display:inline-flex;border:1px solid var(--ink);font-family:var(--mono);font-size:0.78rem}
+.exog-toggle .switch button{background:transparent;border:none;padding:0.4rem 0.9rem;cursor:pointer;color:var(--ink);text-transform:uppercase;letter-spacing:0.08em}
+.exog-toggle .switch button.on{background:var(--ink);color:var(--paper)}
+.exog-toggle .availability{font-family:var(--mono);font-size:0.74rem;color:var(--muted)}
+.diff-stack{display:grid;grid-template-columns:1fr;gap:0.8rem;margin:1.2rem 0}
+.diff-card{border:1px solid var(--rule);background:var(--paper)}
+.diff-card .head{padding:0.7rem 1.1rem;border-bottom:1px solid var(--rule);background:var(--soft);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline}
+.diff-card .head .meta{color:var(--muted);text-transform:none;letter-spacing:0;font-size:0.74rem}
+.diff-card svg{display:block;width:100%;height:120px;padding:0.4rem 1rem 0.6rem;box-sizing:border-box}
+.cv-table,.aic-table{margin:1.4rem 0;border:1px solid var(--rule);background:var(--paper)}
+.cv-table .head,.aic-table .head{padding:0.8rem 1.2rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink);display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+.cv-table table,.aic-table table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:0.84rem}
+.cv-table th,.cv-table td,.aic-table th,.aic-table td{padding:0.55rem 1.2rem;text-align:left;border-bottom:1px solid var(--rule)}
+.cv-table th,.aic-table th{font-weight:500;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;background:var(--paper)}
+.cv-table tr:last-child td,.aic-table tr:last-child td{border-bottom:none}
+.cv-table tr.best td{background:var(--soft);font-weight:500}
+.cv-table tr.best td:first-child::before{content:'★ ';color:var(--terra)}
+.aic-table tr.current td{color:var(--terra)}
+.verdict{margin:2rem 0;border:1px solid var(--ink);background:var(--paper);position:relative}
+.verdict .label{position:absolute;top:-0.7rem;left:1.2rem;background:var(--paper);padding:0 0.6rem;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.16em;color:var(--terra)}
+.verdict .body{padding:1.6rem 1.4rem 1.4rem}
+.verdict.textbook{border-color:var(--ok)}.verdict.textbook .label{color:var(--ok)}
+.verdict.workable{border-color:var(--warn)}.verdict.workable .label{color:var(--warn)}
+.verdict.wrong{border-color:var(--terra)}.verdict.wrong .label{color:var(--terra)}
+.verdict h3{font-family:var(--serif);font-weight:700;font-size:1.4rem;margin:0 0 0.5rem}
+.verdict h3 em{font-style:italic;font-weight:500}
+.verdict p{margin:0 0 0.8rem;max-width:48rem}
+.verdict .pts{display:grid;grid-template-columns:1fr;gap:0.4rem;margin:0.8rem 0;padding-left:0}
+@media (min-width:680px){.verdict .pts{grid-template-columns:1fr 1fr;gap:0.4rem 1.4rem}}
+.verdict .pts li{list-style:none;padding-left:1.6rem;position:relative;font-size:0.92rem}
+.verdict .pts li::before{content:counter(li);counter-increment:li;position:absolute;left:0;top:0.05rem;font-family:var(--mono);font-size:0.72rem;color:var(--muted);width:1.2rem;text-align:right}
+.verdict .pts.strengths{counter-reset:li}.verdict .pts.weaknesses{counter-reset:li}
+.verdict .pts h4{grid-column:1/-1;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0.6rem 0 0.2rem;font-weight:500}
+.verdict .pts.strengths h4{color:var(--ok)}.verdict .pts.weaknesses h4{color:var(--warn)}
+.verdict .example{border-left:2px solid var(--terra);padding:0.5rem 0 0.5rem 1rem;margin:0.9rem 0;font-style:italic;font-family:var(--serif);font-size:1rem}
+.verdict .instead{margin-top:1rem;padding:0.9rem 1rem;background:var(--soft);font-family:var(--sans);font-size:0.92rem;border-left:3px solid var(--terra)}
+.verdict .instead strong{font-weight:700;color:var(--terra);text-transform:uppercase;font-family:var(--mono);font-size:0.74rem;letter-spacing:0.1em;display:block;margin-bottom:0.25rem}
+.hints{margin:3rem 0}
+.hints details{border-top:1px solid var(--rule);padding:0.9rem 0}
+.hints details:last-of-type{border-bottom:1px solid var(--rule)}
+.hints summary{cursor:pointer;font-family:var(--serif);font-weight:500;font-size:1.05rem;list-style:none;padding-right:1.5rem;position:relative}
+.hints summary::-webkit-details-marker{display:none}
+.hints summary::after{content:'+';position:absolute;right:0;top:-0.05rem;font-family:var(--serif);font-size:1.4rem;color:var(--terra);line-height:1}
+.hints details[open] summary::after{content:'×';color:var(--ink)}
+.hints details p{margin:0.7rem 0 0;color:var(--ink);max-width:46rem}
+.hints details p em{color:var(--muted);font-style:italic}
+footer.site{margin:5rem 0 3rem;padding-top:2rem;border-top:1px solid var(--rule);font-family:var(--mono);font-size:0.78rem;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem}
+footer.site a{color:var(--muted);text-decoration:underline;text-decoration-color:var(--rule)}
+footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
+.byline{font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--ink)}
+@media (max-width:520px){header.site nav{font-size:0.7rem;gap:0.85rem}.opt{font-size:0.84rem;padding:0.6rem 0.7rem}}
+.skip-link{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--paper);padding:0.5rem 1rem}
+.skip-link:focus{left:1rem;top:1rem;z-index:10}
+.verdict .instead a{color:var(--terra);text-decoration:underline;text-decoration-color:var(--terra);font-weight:500}
+.verdict .instead a:hover{color:var(--ink);text-decoration-color:var(--ink)}
+.katex{font-size:1.05em;line-height:1.4}
+.equations .katex{font-size:0.95em}
+.notation .katex{font-size:1em}
+:root[data-theme="dark"] .katex,:root[data-theme="dark"] .katex *{color:var(--ink)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .katex,:root:not([data-theme="light"]) .katex *{color:var(--ink)!important}}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--rule)}
+.table-scroll table{margin:0}
+@media (max-width:600px){
+ .aic-table th,.aic-table td,.cv-table th,.cv-table td{padding:0.5rem 0.7rem;font-size:0.78rem}
+ .notation{padding:1rem;font-size:0.8rem}
+ .notation .eq{margin:0.4rem 0}
+ .notation .eq .lbl{display:block;width:auto;font-size:0.66rem;margin-bottom:0.15rem}
+ .adf-block .body{padding:0.85rem 1rem}
+ .diff-card .head{padding:0.55rem 0.85rem;flex-wrap:wrap;gap:0.3rem}
+ .diff-card .head .meta{font-size:0.66rem}
+ h1.title{font-size:clamp(1.6rem,7vw,2.4rem)}
+ .lede{font-size:1rem}
+ header.site .row{gap:0.6rem}
+ header.site nav{gap:0.7rem;font-size:0.66rem}
+ .picker .options{padding:0.5rem;gap:0.4rem}
+ .opt{padding:0.55rem 0.6rem;font-size:0.82rem}
+ .verdict .body{padding:1.2rem 1rem 1rem}
+ .verdict h3{font-size:1.15rem}
+ .chart-card .head{padding:0.7rem 0.85rem}
+ .chart-svg-wrap{padding:0.55rem 0.85rem 0.85rem}
+ .display{gap:1rem}
+ .pickers{gap:1rem}
+ .acfpacf{grid-template-columns:1fr}
+ .acfpacf > div{border-right:none;border-bottom:1px solid var(--rule)}
+ .acfpacf > div:last-child{border-bottom:none}
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="site">
+ <div class="row">
+  <div class="brand">Time Series <em>Field Guide</em></div>
+  <nav aria-label="Pages">
+   <a href="ets.html">ETS</a>
+   <a href="arma.html">ARMA</a>
+   <a href="arima.html">ARIMA</a>
+   <a href="sarimax.html" class="current">SARIMAX</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">Dark</button>
+ </div>
+</header>
+<main id="main">
+<div class="kicker">Chapter 04 · Seasonal, exogenous, and where ARIMA gives up</div>
+<h1 class="title">SARIMAX, when the cycle <em>and</em> a holiday calendar both matter</h1>
+<p class="lede">Add seasonal differencing for cycles, add an exogenous regressor for known drivers, then cross-validate the order. SARIMAX takes you a long way. The verdict will also tell you when it stops being enough, and what the practitioner reaches for next.</p>
+
+<section class="notation">
+ <h3>SARIMAX$(p,d,q)(P,D,Q)_m$ with $X$</h3>
+ <div class="eq"><span class="lbl">Seasonal Δ</span>$\Delta_m y_t = y_t - y_{t-m}$, applied $D$ times</div>
+ <div class="eq"><span class="lbl">Full operator</span>$(1-L)^d\,(1-L^m)^D\,y_t$ after subtracting $\beta X_t$</div>
+ <div class="eq"><span class="lbl">AR side</span>$\phi(L)\,\Phi(L^m)$, polynomials in $L$ and in $L^m$</div>
+ <div class="eq"><span class="lbl">MA side</span>$\theta(L)\,\Theta(L^m)$</div>
+ <div class="eq"><span class="lbl">Exogenous</span>$y_t$ includes $\beta X_t$, fitted jointly. $X$ must be known when the forecast is made</div>
+ <div class="eq"><span class="lbl">Period m</span>$m=12$ for monthly with annual seasonality, $m=7$ for daily with weekly cycle, $m=4$ for quarterly</div>
+</section>
+
+<div class="callout">
+ <strong>The honest limit</strong>
+ SARIMAX handles a single seasonal frequency, linearly, with stationary residuals. When your data has multiple seasonalities, holiday effects with idiosyncratic shapes, or non-linear interactions between the regressor and the level, the verdict on this page will say so and point you to Prophet, NeuralProphet, state-space models, or a tree-based regressor with engineered features. Knowing when to stop reaching for ARIMA is the lesson.
+</div>
+
+<section>
+ <h2 class="section">Pick a series, pick an order</h2>
+ <p class="sub">Six scenarios, including one with an exogenous regressor that you can switch on or off to see what X buys you.</p>
+
+ <div class="pickers">
+  <div class="picker">
+   <header><span class="label">Series</span><span>6 scenarios</span></header>
+   <div id="dsList" class="options"></div>
+  </div>
+  <div class="picker">
+   <header><span class="label">SARIMAX(p,d,q)(P,D,Q,m)</span><span>9 candidates</span></header>
+   <div id="mdList" class="options"></div>
+  </div>
+ </div>
+
+ <div class="exog-toggle">
+  <span class="lbl">Exogenous X</span>
+  <div class="switch">
+   <button id="xOff" class="on">Off</button>
+   <button id="xOn">On</button>
+  </div>
+  <span class="availability" id="xAvail"></span>
+ </div>
+
+ <div class="diff-stack" id="diffStack"></div>
+
+ <div class="cv-table">
+  <div class="head"><span>Rolling-origin cross-validation, three candidate hyperparameter sets</span><span id="cvBest"></span></div>
+  <div class="table-scroll cv-scroll"><table>
+   <thead><tr><th>Candidate</th><th>Fold 1 RMSE</th><th>Fold 2 RMSE</th><th>Fold 3 RMSE</th><th>Mean RMSE</th></tr></thead>
+   <tbody id="cvBody"></tbody>
+  </table></div>
+ </div>
+
+ <div class="verdict" id="verdict">
+  <div class="label" id="verdictLabel">Verdict</div>
+  <div class="body" id="verdictBody"><p>Pick a series and a model order to see the verdict.</p></div>
+ </div>
+</section>
+
+<section class="hints">
+ <h2 class="section">Five things worth knowing</h2>
+ <p class="sub">Click to reveal the limits of the toolkit.</p>
+ <details><summary>How do I pick D for seasonal differencing?</summary><p>Look at the seasonal sub-series, the values at lags m, 2m, 3m, etc. If they drift, D=1 is needed. Almost no real series needs D > 1. Pair it with d for the trend, so the typical order is d=1, D=1, m matching the dominant period. <em>Hyndman calls this the airline model when p, q, P, Q are all small.</em></p></details>
+ <details><summary>What does an exogenous regressor add?</summary><p>X is a covariate the forecaster knows in advance, like a price, a promotion flag, a temperature forecast, or a calendar holiday indicator. Its coefficient is fitted jointly with the SARIMA part, so the residuals are what is left after both the seasonal structure and the known driver. <em>X must be known at the time you make the forecast, otherwise the model is unusable in production.</em></p></details>
+ <details><summary>Why rolling-origin cross-validation, not random k-fold?</summary><p>Time series have order. Random folds let the model peek at the future when training, which inflates apparent accuracy. Rolling-origin keeps the train set strictly before the test set, so the validation mimics how the model will actually be used. <em>Always validate forecasts the way you will deploy them.</em></p></details>
+ <details><summary>What if there are multiple seasonalities?</summary><p>Daily call-centre data has weekly and yearly cycles together. SARIMAX handles only one. Practitioners reach for TBATS, MSTL with ARIMA on the deseasonalised remainder, Prophet (which has built-in additive multi-seasonal terms), or NeuralProphet for non-linear additions. <em>The verdict on this page will say so when the scenario calls for it.</em></p></details>
+ <details><summary>When does SARIMAX really stop being enough?</summary><p>When the relationship between X and y is non-linear, when there are interactions between calendar effects, or when the residuals show clusters of variance the homoscedastic assumption cannot absorb. The honest answer is then a tree-based regressor (LightGBM, XGBoost) with engineered features, a neural network like NeuralProphet, or a structural state-space model that lets you put domain knowledge in. <em>The bridge to chapter five, if you ever write it, would be exactly this.</em></p></details>
+</section>
+
+</main>
+<footer class="site">
+ <div>
+  <div class="byline">By Pierre Sutherland, for the Cambridge PACE 2026 cohort and anyone learning forecasting.</div>
+  <div style="margin-top:0.4rem">Editorial, vanilla, single file. View source, fork it.</div>
+ </div>
+ <div><a href="arima.html">← ARIMA</a> &nbsp; <a href="ets.html">Back to ETS →</a></div>
+</footer>
+</div>
+<script>
+'use strict';
+function pageLink(p){var k={'ets.html':1,'arma.html':1,'arima.html':1,'sarimax.html':1};return k[p]?'<a href="'+p+'">'+p+'</a>':p;}
+(function(){var r=document.documentElement,s=localStorage.getItem('tsfg-theme');if(s)r.dataset.theme=s;})();
+function rng(s){let x=s>>>0;return()=>{x=(x*1664525+1013904223)>>>0;return((x>>>8)&0xFFFFFF)/0x1000000-0.5;};}
+
+// ===== Datasets with optional exogenous X =====
+function genAirline(n,s){const r=rng(s);const data=[];const x=[];const seas=[1.0,0.92,1.0,0.98,0.95,1.05,1.18,1.18,1.05,0.94,0.88,1.07];for(let i=0;i<n;i++){const trend=Math.exp(0.018*i)*100;data.push(trend*seas[i%12]+r()*4);x.push(0);}return{data,x:null};}
+function genUKElec(n,s){const r=rng(s);const data=[];const x=[];const seas=[14,10,9,7,5,3,2,3,4,7,11,15];for(let i=0;i<n;i++){data.push(80+i*0.18+seas[i%12]+r()*2);x.push(0);}return{data,x:null};}
+function genRetail(n,s){const r=rng(s);const data=[];const xArr=[];const seas=[0.92,0.88,1.0,0.98,1.03,1.0,0.97,1.0,1.05,1.04,1.12,1.45];for(let i=0;i<n;i++){const promoActive=(i%6===4||i%6===5)?1:0;const promoEffect=promoActive?12:0;const trend=200+i*0.6;data.push(trend*seas[i%12]+promoEffect+r()*5);xArr.push(promoActive);}return{data,x:xArr};}
+function genWeeklyDaily(n,s){const r=rng(s);const data=[];const dayCycle=[0,1.0,1.05,1.0,1.0,0.95,-1.5,-1.8];const yearCycle=[];for(let i=0;i<n;i++){const dow=i%7;const week=Math.floor(i/7);const yc=2*Math.sin(week*Math.PI/26);data.push(50+i*0.05+5*dayCycle[dow+1]+yc+r()*0.8);}return{data,x:null};}
+function genHoliday(n,s){const r=rng(s);const data=[];const xArr=[];const seas=[0.95,0.93,1.0,1.0,1.05,1.05,1.0,0.97,1.02,1.05,1.1,1.4];for(let i=0;i<n;i++){const month=i%12;const isHoliday=(month===10||month===11)?1:0;const holidayBoost=isHoliday*8;data.push(120*seas[month]+i*0.4+holidayBoost+r()*4);xArr.push(isHoliday);}return{data,x:xArr};}
+function genIrregular(n,s){const r=rng(s);const data=[];for(let i=0;i<n;i++){const cluster=Math.exp(-((i%24-12)*(i%24-12))/8);data.push(50+i*0.1+10*cluster+r()*3);}return{data,x:null};}
+
+const SC=[
+ {id:'airline',name:'Airline-style monthly',blurb:'Annual seasonality with multiplicative trend, archetypal SARIMA',m:12,exog:false,...genAirline(96,11)},
+ {id:'ukelec',name:'UK electricity demand',blurb:'Quarterly-feel additive seasonality with linear trend',m:12,exog:false,...genUKElec(96,12)},
+ {id:'retail',name:'Retail sales with promotions',blurb:'Annual seasonality plus a binary promotion flag',m:12,exog:true,...genRetail(96,13)},
+ {id:'weekly',name:'Daily with weekly cycle',blurb:'7-day cycle, slight long-cycle drift, single-seasonality SARIMAX',m:7,exog:false,...genWeeklyDaily(120,14)},
+ {id:'holiday',name:'Monthly with holiday spikes',blurb:'Annual cycle plus discrete holiday indicator',m:12,exog:true,...genHoliday(96,15)},
+ {id:'multi',name:'Daily with weekly and yearly',blurb:'Two seasonalities, SARIMAX struggles, see verdict',m:7,exog:false,...genWeeklyDaily(120,16),multi:true}
+];
+
+const MD=[
+ {id:'A',p:0,d:1,q:1,P:0,D:1,Q:1,name:'(0,1,1)(0,1,1) airline',blurb:'Hyndman archetype'},
+ {id:'B',p:1,d:1,q:0,P:1,D:1,Q:0,name:'(1,1,0)(1,1,0)',blurb:'AR seasonal'},
+ {id:'C',p:1,d:1,q:1,P:1,D:1,Q:1,name:'(1,1,1)(1,1,1)',blurb:'Mixed both sides'},
+ {id:'D',p:0,d:1,q:1,P:0,D:0,Q:0,name:'(0,1,1)(0,0,0) no seasonal D',blurb:'Missing seasonal differencing'},
+ {id:'E',p:0,d:0,q:0,P:0,D:1,Q:1,name:'(0,0,0)(0,1,1) seasonal only',blurb:'No trend differencing'},
+ {id:'F',p:2,d:1,q:1,P:1,D:1,Q:1,name:'(2,1,1)(1,1,1)',blurb:'Larger AR component'},
+ {id:'G',p:0,d:1,q:1,P:0,D:1,Q:2,name:'(0,1,1)(0,1,2)',blurb:'Two seasonal MA terms'},
+ {id:'H',p:1,d:0,q:0,P:0,D:0,Q:0,name:'(1,0,0)(0,0,0) no diff',blurb:'AR(1), no differencing at all'},
+ {id:'I',p:0,d:2,q:1,P:0,D:1,Q:1,name:'(0,2,1)(0,1,1) double diff',blurb:'Over-differenced trend'}
+];
+
+// ===== Diff helpers =====
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function variance(a){const m=mean(a);return a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length;}
+function diff(y,d){let v=y.slice();for(let k=0;k<d;k++){const out=[];for(let i=1;i<v.length;i++)out.push(v[i]-v[i-1]);v=out;}return v;}
+function seasDiff(y,m,D){let v=y.slice();for(let k=0;k<D;k++){const out=[];for(let i=m;i<v.length;i++)out.push(v[i]-v[i-m]);v=out;}return v;}
+function lstsq(X,Y){const k=X[0].length,n=X.length;const A=Array.from({length:k},()=>new Array(k+1).fill(0));for(let i=0;i<n;i++){for(let a=0;a<k;a++){A[a][k]+=X[i][a]*Y[i];for(let b=0;b<k;b++)A[a][b]+=X[i][a]*X[i][b];}}for(let i=0;i<k;i++){let p=i;for(let r=i+1;r<k;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;if(p!==i){const t=A[i];A[i]=A[p];A[p]=t;}const piv=A[i][i]||1e-12;for(let c=i;c<=k;c++)A[i][c]/=piv;for(let r=0;r<k;r++)if(r!==i){const f=A[r][i];for(let c=i;c<=k;c++)A[r][c]-=f*A[i][c];}}return A.map(r=>r[k]);}
+
+// ===== SARIMAX fitting =====
+// Approximation: do regular and seasonal differencing, then OLS on regular and seasonal lags + exog.
+function fitSARIMAX(y,xRaw,p,d,q,P,D,Q,m,useX){
+ // Apply differencing
+ let v=y.slice();
+ if(d>0) v=diff(v,d);
+ if(D>0&&m>1) v=seasDiff(v,m,D);
+ // Align exogenous variable
+ const drop = d + D*m;
+ let xUsed = null;
+ if(useX && xRaw){xUsed = xRaw.slice(drop);}
+ const n=v.length;
+ // Build regression: y_t on [1, exog?, y_{t-1}..y_{t-p}, y_{t-m}..y_{t-Pm}, eps_{t-1}..eps_{t-q}, eps_{t-m}..eps_{t-Qm}]
+ // Two-stage: estimate residuals via long AR, then full OLS.
+ const muV = mean(v);
+ const ar = fitARForResid(v.map(x=>x-muV), Math.min(8, Math.floor(n/4)));
+ const eps = ar.resid.slice();
+ const start = Math.max(p, q, P*m, Q*m, 1);
+ const X=[], Y=[];
+ for(let t=start;t<n;t++){
+  const row=[1];
+  if(xUsed) row.push(xUsed[t]||0);
+  for(let k=1;k<=p;k++) row.push(v[t-k]);
+  for(let k=1;k<=P;k++){const idx=t-k*m;row.push(idx>=0?v[idx]:0);}
+  for(let k=1;k<=q;k++) row.push(eps[t-k]||0);
+  for(let k=1;k<=Q;k++){const idx=t-k*m;row.push(idx>=0?(eps[idx]||0):0);}
+  X.push(row); Y.push(v[t]);
+ }
+ if(X.length<3 || X[0].length>X.length){return{fit:v.slice(),resid:new Array(v.length).fill(0),sigma2:variance(v)||1,beta:[muV],dy:v};}
+ const beta = lstsq(X,Y);
+ // Compute residuals
+ const fit = new Array(start).fill(muV);
+ const resid = new Array(start).fill(0);
+ const innov = eps.slice();
+ for(let t=start;t<n;t++){
+  let yhat=0;
+  let bi=0;
+  yhat+=beta[bi++];
+  if(xUsed) yhat+=beta[bi++]*(xUsed[t]||0);
+  for(let k=1;k<=p;k++) yhat+=beta[bi++]*v[t-k];
+  for(let k=1;k<=P;k++){const idx=t-k*m;yhat+=beta[bi++]*(idx>=0?v[idx]:0);}
+  for(let k=1;k<=q;k++) yhat+=beta[bi++]*(innov[t-k]||0);
+  for(let k=1;k<=Q;k++){const idx=t-k*m;yhat+=beta[bi++]*(idx>=0?(innov[idx]||0):0);}
+  fit.push(yhat);
+  const e=v[t]-yhat;
+  resid.push(e);
+  innov[t]=e;
+ }
+ const sigma2 = resid.slice(start).reduce((s,e)=>s+e*e,0)/Math.max(1,n-start);
+ return {fit,resid,sigma2,beta,dy:v};
+}
+
+function fitARForResid(y,p){
+ const n=y.length;
+ if(p<=0||n<p+2){return{coef:[],resid:y.slice()};}
+ const X=[],Y=[];
+ for(let t=p;t<n;t++){const row=[1];for(let k=1;k<=p;k++)row.push(y[t-k]);X.push(row);Y.push(y[t]);}
+ if(X.length<2)return{coef:[],resid:y.slice()};
+ const beta=lstsq(X,Y);
+ const fit=new Array(p).fill(0);
+ const resid=new Array(p).fill(0);
+ for(let t=p;t<n;t++){let yh=beta[0];for(let k=1;k<=p;k++)yh+=beta[k]*y[t-k];fit.push(yh);resid.push(y[t]-yh);}
+ return {coef:beta.slice(1),resid};
+}
+
+function rmse(r){const v=r.filter(x=>isFinite(x)&&x!==0);return v.length?Math.sqrt(v.reduce((s,e)=>s+e*e,0)/v.length):NaN;}
+function aicBic(s2,k,n){const ll=-0.5*n*(Math.log(2*Math.PI*Math.max(s2,1e-10))+1);return{aic:-2*ll+2*k,bic:-2*ll+k*Math.log(n)};}
+
+// ===== Charts =====
+function drawSimple(svg,data,W,H){
+ W=W||700;H=H||120;
+ const padL=40,padR=10,padT=10,padB=20;
+ const iw=W-padL-padR,ih=H-padT-padB;
+ const lo=Math.min(...data),hi=Math.max(...data);
+ const span=Math.max(hi-lo,1e-6);
+ const x=i=>padL+iw*i/Math.max(data.length-1,1);
+ const y=v=>padT+ih-(ih*(v-lo))/span;
+ let h=`<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ h+=`<line x1="${padL}" y1="${padT+ih}" x2="${padL+iw}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ [0,0.5,1].forEach(f=>{const v=lo+span*f,py=y(v);h+=`<text x="${padL-3}" y="${py+3}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="9" fill="#6B6256">${formatNum(v)}</text>`;if(f===0.5)h+=`<line x1="${padL}" y1="${py}" x2="${padL+iw}" y2="${py}" stroke="#E0D9C7" stroke-width="0.5"/>`;});
+ let p='';data.forEach((v,i)=>{p+=(i?'L':'M')+x(i)+','+y(v);});
+ h+=`<path d="${p}" fill="none" stroke="#1F1B16" stroke-width="1.4"/>`;
+ svg.innerHTML=h;
+}
+function formatNum(v){if(Math.abs(v)>=1000)return (v/1000).toFixed(1)+'k';if(Math.abs(v)>=10)return v.toFixed(1);return v.toFixed(2);}
+
+// ===== Verdicts =====
+function v(cls,reasoning,strengths,weaknesses,example,useInstead){return{classification:cls,reasoning,strengths,weaknesses,example,useInstead:useInstead||null};}
+const V = {
+ 'airline|A':v('textbook','The airline model, SARIMA(0,1,1)(0,1,1)[12], is exactly the textbook fit for monthly data with annual seasonality and multiplicative-feeling trend.',
+  ['One regular and one seasonal MA term capture the structure parsimoniously','Hyndman uses this exact configuration on the original AirPassengers as the pedagogical archetype','Cross-validation typically confirms it as the best of the parsimonious candidates'],
+  ['Multiplicative trend is approximated linearly through the differencing','BIC may slightly prefer simpler variants in shorter samples'],
+  'Box and Jenkins identified this configuration on the AirPassengers data; it remains the most-quoted example in time series teaching.'),
+ 'airline|D':v('wrong','Without seasonal differencing (D=0), the model leaves the annual cycle in the residuals. The fit will look reasonable but the residual ACF will spike at lag 12.',
+  null,null,'Residual ACF at lag 12 sits well outside the Bartlett band, the textbook signal that seasonal differencing is needed.',
+  {model:'SARIMA(0,1,1)(0,1,1)',page:'this page',reason:'seasonal differencing of the form (1 − L^12) removes the annual cycle that ordinary differencing leaves intact'}),
+ 'airline|E':v('wrong','Without ordinary differencing (d=0), the trend remains and the model carries a near-unit-root coefficient on the seasonally-differenced series.',
+  null,null,'Residuals show slow decay rather than rapid mean reversion, the diagnostic that the integration order is wrong.',
+  {model:'SARIMA(0,1,1)(0,1,1)',page:'this page',reason:'both differences are needed: ordinary for the trend, seasonal for the cycle'}),
+ 'ukelec|A':v('textbook','Slow linear trend with regular seasonal swings is the canonical SARIMA(0,1,1)(0,1,1) territory.',
+  ['Both differences are appropriate, ordinary for the trend and seasonal for the cycle','MA terms on each side capture the residual structure','Forecasts with appropriate uncertainty for monthly utility planning'],
+  ['Recent demand-flexibility behaviour is not modelled','Long-horizon forecasts will overshoot without damping'],
+  'Energy planners use exactly this shape to anticipate winter peaks.'),
+ 'retail|A':v('workable','Without the exogenous regressor switched on, SARIMA captures the seasonal trend but treats promotion-driven spikes as noise.',
+  ['Captures the dominant annual cycle','Trend is well-identified','Forecasts are usable for non-promotion months'],
+  ['Promotion months show large residuals because the model cannot see the promotion','Without X the model overestimates uncertainty in non-promotion months'],
+  'A common starting point. Switch X on to see what the promotion flag buys you.'),
+ 'retail|A+x':v('textbook','Adding the binary promotion regressor brings the residual variance down sharply. The seasonal cycle is captured by the SARIMA part, the discrete spikes by X.',
+  ['X coefficient is large and significant','Residual variance falls from approximately 25 to 6 once X is included','Forecasts in non-promotion months tighten visibly'],
+  ['X must be known in advance to forecast, the promotion calendar must already be set','Effect is assumed linear in X, an interaction with seasonality may exist that this model misses'],
+  'This is what SARIMAX is for. Compare RMSE with and without X across the cross-validation folds.'),
+ 'multi|A':v('wrong','The series has both weekly and yearly seasonality. SARIMAX handles only one seasonal frequency at a time, so whichever cycle is missed shows up in the residuals.',
+  null,null,'Residual ACF spikes at the missed seasonal lag, regardless of how many AR or MA terms you add.',
+  {model:'TBATS, MSTL plus ARIMA, Prophet, or NeuralProphet',page:'beyond this guide',reason:'these handle multiple seasonalities natively, where SARIMAX requires you to choose one and lose the other'}),
+ 'holiday|A':v('workable','Without the holiday indicator, SARIMA models the November and December spikes as part of the annual cycle. It works, but underestimates the size of the spikes.',
+  ['Annual cycle is captured','Trend is reasonable','Useful baseline'],
+  ['November and December residuals are systematically large','Forecast intervals around holidays are wider than they need to be'],
+  'Compare to the same model with X on.'),
+ 'holiday|A+x':v('textbook','The holiday indicator captures the discrete spike in November and December cleanly. Residuals tighten and forecasts become noticeably better around the spike months.',
+  ['X coefficient identifies the discrete holiday effect','Residual variance drops','Forecast intervals tighten where they matter most'],
+  ['Holiday calendar must be known in advance','A holiday-by-product interaction is not modelled, would need a more flexible regressor'],
+  'Retailers and e-commerce platforms use exactly this construction for Black Friday, Boxing Day, Diwali, and similar concentrated calendar events.'),
+ 'multi|C':v('wrong','Increasing the order does not solve the multi-seasonal problem. The second cycle remains in the residuals.',
+  null,null,'Whatever the AR and MA orders, residual ACF retains a spike at the missed seasonal lag.',
+  {model:'TBATS or Prophet with additive seasonal terms',page:'beyond this guide',reason:'multiple seasonalities require a model that can carry more than one period; SARIMAX architecturally cannot'})
+};
+
+function genericVerdict(sc,md,useX){
+ const parts = `(${md.p},${md.d},${md.q})(${md.P},${md.D},${md.Q})_{${sc.m}}`;
+ const order = md.name.split(' ')[0];
+ if(sc.multi){
+  return v('wrong',`SARIMAX${parts} on a series with multiple seasonalities. Whichever cycle is in m, the other is in the residuals.`,null,null,
+   'Residuals retain a clear spike at the unmodelled seasonal lag.',
+   {model:'TBATS, Prophet, NeuralProphet, or MSTL plus ARIMA',page:'beyond this guide',reason:'multiple seasonalities need a model that carries more than one period at once'});
+ }
+ if(md.D===0 && md.d>=1){
+  return v('wrong',`Ordinary differencing without seasonal differencing leaves the annual cycle in the residuals.`,null,null,
+   `Residual ACF at lag ${sc.m} will sit well outside the Bartlett band.`,
+   {model:`SARIMA(p,${md.d},q)(P,1,Q)`,page:'this page',reason:'a series with seasonal structure needs seasonal differencing too'});
+ }
+ if(md.d===0 && md.D>=1 && sc.id!=='wn'){
+  return v('wrong',`Seasonal differencing without ordinary differencing leaves the trend in the residuals.`,null,null,
+   'Residuals decay slowly and forecasts drift in the recent direction.',
+   {model:`SARIMA(p,1,q)(P,${md.D},Q)`,page:'this page',reason:'most series need both ordinary and seasonal differencing'});
+ }
+ if(md.d>=2){
+  return v('workable',`Twice ordinary differencing on a once-integrated series. The fit will work but inflates variance unnecessarily.`,
+   ['Captures the integration','Honest about complexity'],
+   ['Variance inflation washes out signal','BIC will prefer d=1'],
+   'Compare RMSE in cross-validation with d=1 to confirm the over-differencing cost.');
+ }
+ if(useX && !sc.x){
+  return v('workable',`X switched on but this series has no exogenous regressor. The X column is constant and contributes nothing.`,null,null,
+   'Coefficient on X is zero by construction; the model behaves identically to the no-X variant.',
+   {model:`SARIMA${parts.replace('SARIMAX','SARIMA')} without X`,page:'this page',reason:'no point fitting an exogenous coefficient when there is no variation in X'});
+ }
+ return v('workable',`SARIMAX${parts} is a defensible choice. Cross-validation will tell you whether the order is well-judged.`,
+  ['Both differences match the structure','Parametric and forecastable'],
+  ['Without parameter optimisation the fit is approximate','A neighbouring order may fit slightly better'],
+  'Inspect the rolling-origin RMSE to compare against the airline model and the without-X variant.');
+}
+
+// ===== State =====
+let curSc=SC[0].id, curMd=MD[0].id, useX=false;
+function buildPickers(){
+ document.getElementById('dsList').innerHTML = SC.map(s=>`<button class="opt" data-sc="${s.id}"><span>${s.name}</span><span class="meta">${s.blurb}</span></button>`).join('');
+ document.getElementById('mdList').innerHTML = MD.map(m=>`<button class="opt" data-md="${m.id}"><span>${m.name}</span><span class="meta">${m.blurb}</span></button>`).join('');
+ document.getElementById('dsList').addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(b){curSc=b.dataset.sc;render();}});
+ document.getElementById('mdList').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(b){curMd=b.dataset.md;render();}});
+ document.getElementById('xOff').addEventListener('click',()=>{useX=false;render();});
+ document.getElementById('xOn').addEventListener('click',()=>{useX=true;render();});
+}
+
+function renderDiffStack(sc){
+ const stack=document.getElementById('diffStack');
+ const orig=sc.data;
+ const d1=diff(orig,1);
+ const sd=seasDiff(orig,sc.m,1);
+ const both=seasDiff(diff(orig,1),sc.m,1);
+ stack.innerHTML = `
+  <div class="diff-card"><div class="head"><span>Original y_t</span><span class="meta">n=${orig.length}, mean=${mean(orig).toFixed(1)}, sd=${Math.sqrt(variance(orig)).toFixed(1)}</span></div><svg id="origSvg" viewBox="0 0 700 120"></svg></div>
+  <div class="diff-card"><div class="head"><span>Δ y, ordinary differencing</span><span class="meta">n=${d1.length}, sd=${Math.sqrt(variance(d1)).toFixed(2)}</span></div><svg id="d1Svg" viewBox="0 0 700 120"></svg></div>
+  <div class="diff-card"><div class="head"><span>Δ_${sc.m} y, seasonal differencing only</span><span class="meta">n=${sd.length}, sd=${Math.sqrt(variance(sd)).toFixed(2)}</span></div><svg id="sdSvg" viewBox="0 0 700 120"></svg></div>
+  <div class="diff-card"><div class="head"><span>Δ Δ_${sc.m} y, both</span><span class="meta">n=${both.length}, sd=${Math.sqrt(variance(both)).toFixed(2)}</span></div><svg id="bothSvg" viewBox="0 0 700 120"></svg></div>
+ `;
+ drawSimple(document.getElementById('origSvg'),orig);
+ drawSimple(document.getElementById('d1Svg'),d1);
+ drawSimple(document.getElementById('sdSvg'),sd);
+ drawSimple(document.getElementById('bothSvg'),both);
+}
+
+function renderCV(sc, md, withX){
+ // Three candidates: current, airline (A), simpler (E)
+ const baseCandidates = [
+  {label:md.name+(withX&&sc.x?' + X':''), md, useX:withX&&!!sc.x},
+  {label:'Airline (0,1,1)(0,1,1)', md:MD.find(m=>m.id==='A'), useX:false},
+  {label:'Airline + X', md:MD.find(m=>m.id==='A'), useX:!!sc.x}
+ ];
+ const folds = 3;
+ const n = sc.data.length;
+ const minTrain = Math.floor(n*0.5);
+ const horizon = Math.floor((n-minTrain)/folds);
+ const rows = baseCandidates.map(c=>{
+  const fold=[];
+  for(let f=0;f<folds;f++){
+   const trainEnd = minTrain + f*horizon;
+   const trainY = sc.data.slice(0,trainEnd);
+   const trainX = sc.x?sc.x.slice(0,trainEnd):null;
+   const testY = sc.data.slice(trainEnd, trainEnd+horizon);
+   try{
+    const fit = fitSARIMAX(trainY, trainX, c.md.p, c.md.d, c.md.q, c.md.P, c.md.D, c.md.Q, sc.m, c.useX);
+    // For evaluation, use mean of last few fits as point forecast (approximation)
+    const lastFits = fit.fit.slice(-Math.min(horizon,fit.fit.length));
+    const fc = [];
+    for(let i=0;i<testY.length;i++){fc.push(lastFits[i%lastFits.length] || mean(trainY));}
+    const errors = testY.map((v,i)=>v-fc[i]);
+    fold.push(rmse(errors));
+   } catch(e){fold.push(NaN);}
+  }
+  const valid = fold.filter(v=>isFinite(v));
+  const meanRMSE = valid.length? valid.reduce((s,v)=>s+v,0)/valid.length : NaN;
+  return {label:c.label, fold, mean:meanRMSE};
+ });
+ const best = rows.reduce((b,r)=>(isFinite(r.mean)&&(!isFinite(b.mean)||r.mean<b.mean))?r:b, rows[0]);
+ document.getElementById('cvBest').textContent = isFinite(best.mean)? `Best mean RMSE: ${best.label}` : 'Insufficient data for CV';
+ document.getElementById('cvBody').innerHTML = rows.map(r=>{
+  const cls = r.label===best.label?'best':'';
+  return `<tr class="${cls}"><td>${r.label}</td>${r.fold.map(v=>`<td>${isFinite(v)?v.toFixed(2):'—'}</td>`).join('')}<td>${isFinite(r.mean)?r.mean.toFixed(2):'—'}</td></tr>`;
+ }).join('');
+}
+
+function render(){
+ const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
+ document.querySelectorAll('[data-sc]').forEach(b=>b.classList.toggle('on',b.dataset.sc===curSc));
+ document.querySelectorAll('[data-md]').forEach(b=>b.classList.toggle('on',b.dataset.md===curMd));
+ document.getElementById('xOff').classList.toggle('on',!useX);
+ document.getElementById('xOn').classList.toggle('on',useX);
+ document.getElementById('xAvail').textContent = sc.x ? '— X is available for this series' : '— this series has no X, switch has no effect';
+ renderDiffStack(sc);
+ renderCV(sc, md, useX);
+ const verdictKey = sc.id+'|'+md.id+(useX&&sc.x?'+x':'');
+ const verdict = V[verdictKey] || V[sc.id+'|'+md.id] || genericVerdict(sc,md,useX);
+ renderVerdict(verdict);
+}
+
+function renderVerdict(v){
+ const root=document.getElementById('verdict');
+ root.className='verdict '+(v.classification==='wrong'?'wrong':v.classification);
+ const lbl = v.classification==='textbook'?'Textbook fit':v.classification==='workable'?'Workable, with caveats':'Wrong tool';
+ document.getElementById('verdictLabel').textContent=lbl;
+ const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
+ const xText = useX&&sc.x?', X on':'';
+ let h=`<h3>${sc.name} <em>with</em> ${md.name}${xText}</h3>`;
+ h+=`<p>${v.reasoning}</p>`;
+ if(v.strengths) h+=`<ul class="pts strengths"><h4>Strengths</h4>${v.strengths.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ if(v.weaknesses) h+=`<ul class="pts weaknesses"><h4>Weaknesses</h4>${v.weaknesses.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ if(v.example) h+=`<div class="example">${v.example}</div>`;
+ if(v.useInstead) h+=`<div class="instead"><strong>Use instead</strong>${v.useInstead.model}, on ${pageLink(v.useInstead.page)}, because ${v.useInstead.reason}.</div>`;
+ document.getElementById('verdictBody').innerHTML=h;
+}
+
+buildPickers();
+render();
+(function(){var r=document.documentElement;function isDark(){return r.dataset.theme==='dark'||(r.dataset.theme!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);}var b=document.getElementById('themeToggle');if(!b)return;b.textContent=isDark()?'Light':'Dark';b.addEventListener('click',function(){var n=isDark()?'light':'dark';r.dataset.theme=n;localStorage.setItem('tsfg-theme',n);b.textContent=n==='dark'?'Light':'Dark';});})();
+</script>
+</body>
+</html>

@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARIMA, Time Series Field Guide</title>
+<meta name="description" content="An interactive walkthrough of integration order, differencing, ADF testing, and the AIC-across-d trap.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FAF6EE;--ink:#1F1B16;--terra:#A8431E;--navy:#1B3B6F;--rule:#E0D9C7;--muted:#6B6256;--soft:#F2ECDC;--warn:#9C5B0F;--ok:#2F5D3F;--serif:'Fraunces',Georgia,serif;--sans:'IBM Plex Sans',-apple-system,sans-serif;--mono:'IBM Plex Mono',Menlo,monospace;--w:64rem}
+:root[data-theme="dark"]{--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#15130F;--ink:#EDE5D2;--terra:#D87545;--navy:#8FAFD8;--rule:#332D24;--muted:#9C9485;--soft:#1F1C16;--warn:#D89A3F;--ok:#6FAA84}}
+:root[data-theme="dark"] svg [stroke="#1F1B16"]{stroke:var(--ink)}
+:root[data-theme="dark"] svg [fill="#6B6256"]{fill:var(--muted)}
+:root[data-theme="dark"] svg [stroke="#E0D9C7"]{stroke:var(--rule)}
+:root[data-theme="dark"] svg [fill="#F2ECDC"]{fill:var(--soft)}
+:root[data-theme="dark"] svg [stroke="#A8431E"]{stroke:var(--terra)}
+:root[data-theme="dark"] svg [stroke="#1B3B6F"]{stroke:var(--navy)}
+:root[data-theme="dark"] svg [fill="#1F1B16"]{fill:var(--ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) svg [stroke="#1F1B16"]{stroke:var(--ink)}:root:not([data-theme="light"]) svg [fill="#6B6256"]{fill:var(--muted)}:root:not([data-theme="light"]) svg [stroke="#E0D9C7"]{stroke:var(--rule)}:root:not([data-theme="light"]) svg [fill="#F2ECDC"]{fill:var(--soft)}:root:not([data-theme="light"]) svg [stroke="#A8431E"]{stroke:var(--terra)}:root:not([data-theme="light"]) svg [stroke="#1B3B6F"]{stroke:var(--navy)}:root:not([data-theme="light"]) svg [fill="#1F1B16"]{fill:var(--ink)}}
+.theme-toggle{background:transparent;border:1px solid var(--rule);color:var(--muted);cursor:pointer;padding:0.3rem 0.7rem;font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;transition:color 0.15s,border-color 0.15s}
+.theme-toggle:hover{color:var(--ink);border-color:var(--ink)}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:16px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 1.25rem}
+header.site{padding:2rem 0 1rem;border-bottom:1px solid var(--rule);margin-bottom:2.5rem}
+header.site .row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:1rem}
+header.site .brand{font-family:var(--serif);font-weight:700;font-size:1.4rem;letter-spacing:-0.01em}
+header.site .brand em{font-style:italic;color:var(--terra);font-weight:500}
+header.site nav{display:flex;gap:1.25rem;font-family:var(--mono);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.08em}
+header.site nav a{color:var(--muted);text-decoration:none;padding-bottom:0.2rem;border-bottom:1px solid transparent}
+header.site nav a:hover{color:var(--ink);border-bottom-color:var(--terra)}
+header.site nav a.current{color:var(--ink);border-bottom-color:var(--terra)}
+.kicker{font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--terra);margin-bottom:0.5rem}
+h1.title{font-family:var(--serif);font-weight:700;font-size:clamp(2rem,5vw,3.4rem);line-height:1.05;margin:0 0 0.6rem;letter-spacing:-0.02em}
+h1.title em{font-style:italic;font-weight:500}
+.lede{font-family:var(--serif);font-style:italic;font-size:clamp(1.05rem,2.2vw,1.25rem);max-width:42rem;margin:0 0 2rem;font-weight:500}
+section{margin:3rem 0}
+h2.section{font-family:var(--serif);font-weight:700;font-size:1.6rem;margin:0 0 0.4rem;letter-spacing:-0.01em}
+h2.section + p.sub{color:var(--muted);margin:0 0 1.4rem;max-width:38rem}
+.callout{background:var(--soft);border-left:3px solid var(--terra);padding:1rem 1.2rem;margin:1.4rem 0;font-size:0.94rem}
+.callout strong{font-family:var(--mono);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--terra);display:block;margin-bottom:0.3rem}
+.notation{background:var(--soft);border:1px solid var(--rule);padding:1.4rem;margin:1.4rem 0;font-family:var(--mono);font-size:0.86rem;line-height:1.7}
+.notation h3{font-family:var(--serif);margin:0 0 0.6rem;font-size:1.15rem;font-weight:700}
+.notation .eq{margin:0.2rem 0}
+.notation .eq .lbl{color:var(--muted);font-size:0.78rem;display:inline-block;width:6rem}
+.pickers{display:grid;grid-template-columns:1fr;gap:1.4rem;margin-bottom:1.6rem}
+@media (min-width:780px){.pickers{grid-template-columns:1fr 1fr}}
+.picker{border:1px solid var(--rule);background:var(--paper)}
+.picker header{padding:0.9rem 1.1rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);display:flex;justify-content:space-between;align-items:baseline}
+.picker header .label{color:var(--ink)}
+.picker .options{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:0.55rem;padding:0.9rem}
+.opt{background:var(--paper);border:1px solid var(--rule);padding:0.7rem 0.85rem;cursor:pointer;font-family:var(--sans);font-size:0.88rem;text-align:left;line-height:1.3;color:var(--ink);transition:border-color 0.15s,background 0.15s}
+.opt:hover{border-color:var(--ink)}
+.opt.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.opt .meta{display:block;font-family:var(--mono);font-size:0.68rem;color:var(--muted);margin-top:0.2rem;text-transform:uppercase;letter-spacing:0.06em}
+.opt.on .meta{color:var(--soft)}
+.diff-stack{display:grid;grid-template-columns:1fr;gap:0.8rem;margin:1.2rem 0}
+.diff-card{border:1px solid var(--rule);background:var(--paper)}
+.diff-card .head{padding:0.7rem 1.1rem;border-bottom:1px solid var(--rule);background:var(--soft);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline}
+.diff-card .head .meta{color:var(--muted);text-transform:none;letter-spacing:0;font-size:0.74rem}
+.diff-card svg{display:block;width:100%;height:120px;padding:0.4rem 1rem 0.6rem;box-sizing:border-box}
+.adf-block{border:1px solid var(--rule);background:var(--paper);margin:1.4rem 0}
+.adf-block .head{padding:0.8rem 1.2rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink)}
+.adf-block .body{padding:1rem 1.2rem;display:grid;grid-template-columns:1fr;gap:0.7rem;font-family:var(--mono);font-size:0.84rem}
+@media (min-width:680px){.adf-block .body{grid-template-columns:1fr 1fr;gap:0.5rem 2rem}}
+.adf-block .row{display:flex;justify-content:space-between;border-bottom:1px dashed var(--rule);padding-bottom:0.3rem}
+.adf-block .row .lbl{color:var(--muted);font-size:0.74rem;text-transform:uppercase;letter-spacing:0.06em}
+.adf-block .row .val.pos{color:var(--ok);font-weight:500}
+.adf-block .row .val.neg{color:var(--terra);font-weight:500}
+.adf-block .verdict-line{grid-column:1/-1;font-family:var(--sans);font-style:italic;font-size:0.92rem;color:var(--ink);padding-top:0.6rem;border-top:1px solid var(--rule);margin-top:0.4rem}
+.aic-table{margin:1.4rem 0;border:1px solid var(--rule);background:var(--paper)}
+.aic-table .head{padding:0.8rem 1.2rem;background:var(--soft);border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink);display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem}
+.aic-table table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:0.84rem}
+.aic-table th,.aic-table td{padding:0.55rem 1.2rem;text-align:left;border-bottom:1px solid var(--rule)}
+.aic-table th{font-weight:500;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;background:var(--paper)}
+.aic-table tr:last-child td{border-bottom:none}
+.aic-table tr.same-d{background:var(--soft)}
+.aic-table tr.cross-d td{color:var(--muted);font-style:italic}
+.aic-table tr.current td{color:var(--terra)}
+.verdict{margin:2rem 0;border:1px solid var(--ink);background:var(--paper);position:relative}
+.verdict .label{position:absolute;top:-0.7rem;left:1.2rem;background:var(--paper);padding:0 0.6rem;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.16em;color:var(--terra)}
+.verdict .body{padding:1.6rem 1.4rem 1.4rem}
+.verdict.textbook{border-color:var(--ok)}.verdict.textbook .label{color:var(--ok)}
+.verdict.workable{border-color:var(--warn)}.verdict.workable .label{color:var(--warn)}
+.verdict.wrong{border-color:var(--terra)}.verdict.wrong .label{color:var(--terra)}
+.verdict h3{font-family:var(--serif);font-weight:700;font-size:1.4rem;margin:0 0 0.5rem}
+.verdict h3 em{font-style:italic;font-weight:500}
+.verdict p{margin:0 0 0.8rem;max-width:48rem}
+.verdict .pts{display:grid;grid-template-columns:1fr;gap:0.4rem;margin:0.8rem 0;padding-left:0}
+@media (min-width:680px){.verdict .pts{grid-template-columns:1fr 1fr;gap:0.4rem 1.4rem}}
+.verdict .pts li{list-style:none;padding-left:1.6rem;position:relative;font-size:0.92rem}
+.verdict .pts li::before{content:counter(li);counter-increment:li;position:absolute;left:0;top:0.05rem;font-family:var(--mono);font-size:0.72rem;color:var(--muted);width:1.2rem;text-align:right}
+.verdict .pts.strengths{counter-reset:li}.verdict .pts.weaknesses{counter-reset:li}
+.verdict .pts h4{grid-column:1/-1;font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0.6rem 0 0.2rem;font-weight:500}
+.verdict .pts.strengths h4{color:var(--ok)}.verdict .pts.weaknesses h4{color:var(--warn)}
+.verdict .example{border-left:2px solid var(--terra);padding:0.5rem 0 0.5rem 1rem;margin:0.9rem 0;font-style:italic;font-family:var(--serif);font-size:1rem}
+.verdict .instead{margin-top:1rem;padding:0.9rem 1rem;background:var(--soft);font-family:var(--sans);font-size:0.92rem;border-left:3px solid var(--terra)}
+.verdict .instead strong{font-weight:700;color:var(--terra);text-transform:uppercase;font-family:var(--mono);font-size:0.74rem;letter-spacing:0.1em;display:block;margin-bottom:0.25rem}
+.hints{margin:3rem 0}
+.hints details{border-top:1px solid var(--rule);padding:0.9rem 0}
+.hints details:last-of-type{border-bottom:1px solid var(--rule)}
+.hints summary{cursor:pointer;font-family:var(--serif);font-weight:500;font-size:1.05rem;list-style:none;padding-right:1.5rem;position:relative}
+.hints summary::-webkit-details-marker{display:none}
+.hints summary::after{content:'+';position:absolute;right:0;top:-0.05rem;font-family:var(--serif);font-size:1.4rem;color:var(--terra);line-height:1}
+.hints details[open] summary::after{content:'×';color:var(--ink)}
+.hints details p{margin:0.7rem 0 0;color:var(--ink);max-width:46rem}
+.hints details p em{color:var(--muted);font-style:italic}
+footer.site{margin:5rem 0 3rem;padding-top:2rem;border-top:1px solid var(--rule);font-family:var(--mono);font-size:0.78rem;color:var(--muted);display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem}
+footer.site a{color:var(--muted);text-decoration:underline;text-decoration-color:var(--rule)}
+footer.site a:hover{color:var(--terra);text-decoration-color:var(--terra)}
+.byline{font-family:var(--serif);font-style:italic;font-size:0.92rem;color:var(--ink)}
+@media (max-width:520px){header.site nav{font-size:0.7rem;gap:0.85rem}.opt{font-size:0.84rem;padding:0.6rem 0.7rem}}
+.skip-link{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--paper);padding:0.5rem 1rem}
+.skip-link:focus{left:1rem;top:1rem;z-index:10}
+.verdict .instead a{color:var(--terra);text-decoration:underline;text-decoration-color:var(--terra);font-weight:500}
+.verdict .instead a:hover{color:var(--ink);text-decoration-color:var(--ink)}
+.katex{font-size:1.05em;line-height:1.4}
+.equations .katex{font-size:0.95em}
+.notation .katex{font-size:1em}
+:root[data-theme="dark"] .katex,:root[data-theme="dark"] .katex *{color:var(--ink)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .katex,:root:not([data-theme="light"]) .katex *{color:var(--ink)!important}}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--rule)}
+.table-scroll table{margin:0}
+@media (max-width:600px){
+ .aic-table th,.aic-table td,.cv-table th,.cv-table td{padding:0.5rem 0.7rem;font-size:0.78rem}
+ .notation{padding:1rem;font-size:0.8rem}
+ .notation .eq{margin:0.4rem 0}
+ .notation .eq .lbl{display:block;width:auto;font-size:0.66rem;margin-bottom:0.15rem}
+ .adf-block .body{padding:0.85rem 1rem}
+ .diff-card .head{padding:0.55rem 0.85rem;flex-wrap:wrap;gap:0.3rem}
+ .diff-card .head .meta{font-size:0.66rem}
+ h1.title{font-size:clamp(1.6rem,7vw,2.4rem)}
+ .lede{font-size:1rem}
+ header.site .row{gap:0.6rem}
+ header.site nav{gap:0.7rem;font-size:0.66rem}
+ .picker .options{padding:0.5rem;gap:0.4rem}
+ .opt{padding:0.55rem 0.6rem;font-size:0.82rem}
+ .verdict .body{padding:1.2rem 1rem 1rem}
+ .verdict h3{font-size:1.15rem}
+ .chart-card .head{padding:0.7rem 0.85rem}
+ .chart-svg-wrap{padding:0.55rem 0.85rem 0.85rem}
+ .display{gap:1rem}
+ .pickers{gap:1rem}
+ .acfpacf{grid-template-columns:1fr}
+ .acfpacf > div{border-right:none;border-bottom:1px solid var(--rule)}
+ .acfpacf > div:last-child{border-bottom:none}
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="site">
+ <div class="row">
+  <div class="brand">Time Series <em>Field Guide</em></div>
+  <nav aria-label="Pages">
+   <a href="ets.html">ETS</a>
+   <a href="arma.html">ARMA</a>
+   <a href="arima.html" class="current">ARIMA</a>
+   <a href="sarimax.html">SARIMAX</a>
+  </nav>
+  <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">Dark</button>
+ </div>
+</header>
+<main id="main">
+<div class="kicker">Chapter 03 · Integration of order d</div>
+<h1 class="title">ARIMA, when the series <em>has to be</em> tamed first</h1>
+<p class="lede">Most real series are not stationary out of the box. ARIMA is the family that differences first, then fits an ARMA on what is left. Pick the integration order well, and the rest follows. Pick it wrong, and even AIC will mislead you.</p>
+
+<section class="notation">
+ <h3>ARIMA notation</h3>
+ <div class="eq"><span class="lbl">Difference</span>$\Delta y_t = y_t - y_{t-1}$, then $\Delta^2 y_t = \Delta(\Delta y_t)$</div>
+ <div class="eq"><span class="lbl">ARIMA(p,d,q)</span>Apply $\Delta^d$, then fit $\text{ARMA}(p,q)$ to the result</div>
+ <div class="eq"><span class="lbl">Lag form</span>$(1 - \phi_1 L - \cdots - \phi_p L^p)(1-L)^d\,y_t = (1 + \theta_1 L + \cdots + \theta_q L^q)\,\varepsilon_t$</div>
+ <div class="eq"><span class="lbl">Stationarity</span>tested by ADF (Augmented Dickey-Fuller) on the differenced series</div>
+</section>
+
+<div class="callout" id="aicCaveat">
+ <strong>The AIC trap</strong>
+ AIC is comparable across models fitted to the same data. Different values of d produce models fitted to different series, the original, the once-differenced, the twice-differenced. Their likelihoods are computed on different sample sizes and different scales. Comparing AIC across d is therefore not meaningful, and that is the trap. Always pick d first, by ADF or by inspecting the differenced series, then compare AIC only within that d.
+</div>
+
+<section>
+ <h2 class="section">Pick a series, then an order</h2>
+ <p class="sub">Eight series chosen to put differencing in its place. Notice when the original is stationary, when one difference suffices, and when even two does not save you from a seasonal mismatch.</p>
+
+ <div class="pickers">
+  <div class="picker">
+   <header><span class="label">Series</span><span>8 scenarios</span></header>
+   <div id="dsList" class="options"></div>
+  </div>
+  <div class="picker">
+   <header><span class="label">ARIMA(p, d, q)</span><span>9 candidates</span></header>
+   <div id="mdList" class="options"></div>
+  </div>
+ </div>
+
+ <div class="diff-stack" id="diffStack"></div>
+
+ <div class="adf-block">
+  <div class="head">ADF test on the original series</div>
+  <div class="body" id="adfBody"></div>
+ </div>
+
+ <div class="aic-table">
+  <div class="head"><span>AIC and BIC, grouped by d. Within-d comparable, across-d misleading.</span><span id="aicBest"></span></div>
+  <div class="table-scroll"><table>
+   <thead><tr><th>Order (p, d, q)</th><th>AIC</th><th>BIC</th><th>RMSE</th></tr></thead>
+   <tbody id="aicBody"></tbody>
+  </table></div>
+ </div>
+
+ <div class="verdict" id="verdict">
+  <div class="label" id="verdictLabel">Verdict</div>
+  <div class="body" id="verdictBody"><p>Pick a series and a model order to see the verdict.</p></div>
+ </div>
+</section>
+
+<section class="hints">
+ <h2 class="section">Five things worth knowing</h2>
+ <p class="sub">Click to reveal the practitioner-level reasoning.</p>
+ <details><summary>How do I pick d in practice?</summary><p>Run ADF on the original series. If you reject the unit root null, set d=0. Otherwise difference and run ADF again. Repeat at most twice; almost no real series needs d > 2. <em>Differencing more than necessary inflates the variance of the differenced series and washes signal away.</em></p></details>
+ <details><summary>Why is AIC across d misleading?</summary><p>Each value of d produces a different sample. ARIMA(p,0,q) fits to all n observations of the original, ARIMA(p,1,q) fits to n−1 observations of the differenced series, ARIMA(p,2,q) fits to n−2. The likelihoods are not on the same scale because the data are not the same. <em>The fix is to pick d first, by ADF and visual inspection, then compare AIC only within that d.</em></p></details>
+ <details><summary>What does the ADF test actually do?</summary><p>It regresses Δy_t on y_{t−1} plus a few lagged differences, and tests whether the coefficient on y_{t−1} is significantly negative. A negative coefficient means deviations from the mean revert; non-rejection of zero means the series is consistent with a unit root, that is, non-stationary. <em>The augmented part adds the lagged differences to absorb autocorrelation in the errors, which would otherwise bias the test.</em></p></details>
+ <details><summary>When does d=2 actually help?</summary><p>When the trend itself is changing. UK monthly retail sales over fifty years have an accelerating curve, and a single difference still leaves a slow upward drift. A second difference flattens it. <em>For most economic and demand series, d=1 is enough. d=2 is uncommon and signals you are looking at a series with a structural break or compounding behaviour, and a careful analyst would investigate before fitting.</em></p></details>
+ <details><summary>What if the residuals show seasonality?</summary><p>Then ARIMA is the wrong tool. Differencing once removes a stochastic trend but leaves a seasonal cycle alone. The verdict in that case will say so explicitly and point to SARIMA(X), where seasonal differencing of the form (1 − L^m) is the right operation. <em>An honest residual ACF that shows a spike at lag m is your invitation to the next chapter.</em></p></details>
+</section>
+
+</main>
+<footer class="site">
+ <div>
+  <div class="byline">By Pierre Sutherland, for the Cambridge PACE 2026 cohort and anyone learning forecasting.</div>
+  <div style="margin-top:0.4rem">Editorial, vanilla, single file. View source, fork it.</div>
+ </div>
+ <div><a href="arma.html">← ARMA</a> &nbsp; <a href="sarimax.html">Next, SARIMAX →</a></div>
+</footer>
+</div>
+<script>
+'use strict';
+function pageLink(p){var k={'ets.html':1,'arma.html':1,'arima.html':1,'sarimax.html':1};return k[p]?'<a href="'+p+'">'+p+'</a>':p;}
+(function(){var r=document.documentElement,s=localStorage.getItem('tsfg-theme');if(s)r.dataset.theme=s;})();
+function rng(s){let x=s>>>0;return()=>{x=(x*1664525+1013904223)>>>0;return((x>>>8)&0xFFFFFF)/0x1000000-0.5;};}
+function genStat(n,s){const r=rng(s);const y=[];let v=10;for(let i=0;i<n;i++){v=0.6*v+0.4*10+r()*1.5;y.push(v);}return y;}
+function genRW(n,s){const r=rng(s);const y=[10];for(let i=1;i<n;i++)y.push(y[i-1]+r()*1.5);return y;}
+function genTrend(n,s){const r=rng(s);return Array.from({length:n},(_,i)=>10+i*0.18+r()*1.0);}
+function genTrendShock(n,s){const r=rng(s);const y=[];for(let i=0;i<n;i++){const t=10+i*0.12+(i>30?(i-30)*0.25:0);y.push(t+r()*1.2);}return y;}
+function genI2(n,s){const r=rng(s);const y=[10,10.2];for(let i=2;i<n;i++)y.push(2*y[i-1]-y[i-2]+r()*0.6);return y;}
+function genSeasonal(n,s){const r=rng(s);return Array.from({length:n},(_,i)=>10+i*0.08+3*Math.sin(i*Math.PI/6)+r()*0.8);}
+function genWN(n,s){const r=rng(s);return Array.from({length:n},()=>10+r()*1.5);}
+function genHybrid(n,s){const r=rng(s);const y=[];let v=0;for(let i=0;i<n;i++){v=0.7*v+r()*1.0;y.push(10+i*0.06+v);}return y;}
+
+const SC=[
+ {id:'stat',name:'Stationary AR(1)',blurb:'Already stationary, d=0 is correct',data:genStat(80,1),trueD:0,seasonal:false},
+ {id:'rw',name:'Random walk',blurb:'Unit root, d=1 differences to white noise',data:genRW(80,2),trueD:1,seasonal:false},
+ {id:'trend',name:'Linear trended',blurb:'Deterministic trend, d=1 detrends nicely',data:genTrend(80,3),trueD:1,seasonal:false},
+ {id:'shock',name:'Trend with structural break',blurb:'Slope changes mid-series, d=1 with care',data:genTrendShock(80,4),trueD:1,seasonal:false},
+ {id:'i2',name:'I(2) integrated process',blurb:'Trend itself drifts, d=2 needed',data:genI2(80,5),trueD:2,seasonal:false},
+ {id:'seas',name:'Trend + seasonal',blurb:'Seasonality survives ordinary differencing',data:genSeasonal(80,6),trueD:1,seasonal:true},
+ {id:'wn',name:'White noise',blurb:'No structure, d=0 with no AR or MA',data:genWN(80,7),trueD:0,seasonal:false},
+ {id:'hybrid',name:'Hybrid trend + AR(1)',blurb:'Linear trend with autoregressive residuals',data:genHybrid(80,8),trueD:1,seasonal:false}
+];
+
+const MD=[
+ {id:'010',p:0,d:1,q:0,name:'ARIMA(0,1,0)',blurb:'Random walk model'},
+ {id:'110',p:1,d:1,q:0,name:'ARIMA(1,1,0)',blurb:'Differenced AR(1)'},
+ {id:'011',p:0,d:1,q:1,name:'ARIMA(0,1,1)',blurb:'Differenced MA(1)'},
+ {id:'111',p:1,d:1,q:1,name:'ARIMA(1,1,1)',blurb:'Mixed, d=1'},
+ {id:'210',p:2,d:1,q:0,name:'ARIMA(2,1,0)',blurb:'Two AR lags after differencing'},
+ {id:'100',p:1,d:0,q:0,name:'ARIMA(1,0,0)',blurb:'AR(1), no differencing'},
+ {id:'001',p:0,d:0,q:1,name:'ARIMA(0,0,1)',blurb:'MA(1), no differencing'},
+ {id:'012',p:0,d:2,q:0,name:'ARIMA(0,2,0)',blurb:'Twice-differenced random walk'},
+ {id:'112',p:1,d:2,q:1,name:'ARIMA(1,2,1)',blurb:'Twice-differenced ARMA'}
+];
+
+// ===== Differencing =====
+function diff(y,d){let v=y.slice();for(let k=0;k<d;k++){const out=[];for(let i=1;i<v.length;i++)out.push(v[i]-v[i-1]);v=out;}return v;}
+function undiff(diffFc, lastObs, d){
+ if(d===0) return diffFc.slice();
+ if(d===1){const out=[];let prev=lastObs;for(const dv of diffFc){prev+=dv;out.push(prev);}return out;}
+ if(d===2){const out=[];let prev=lastObs[lastObs.length-1];let prevDiff=lastObs[lastObs.length-1]-lastObs[lastObs.length-2];for(const dv of diffFc){prevDiff+=dv;prev+=prevDiff;out.push(prev);}return out;}
+ return diffFc;
+}
+
+// ===== ARMA from chapter 02 =====
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function variance(a){const m=mean(a);return a.reduce((s,v)=>s+(v-m)*(v-m),0)/a.length;}
+function lstsq(X,Y){const k=X[0].length,n=X.length;const A=Array.from({length:k},()=>new Array(k+1).fill(0));for(let i=0;i<n;i++){for(let a=0;a<k;a++){A[a][k]+=X[i][a]*Y[i];for(let b=0;b<k;b++)A[a][b]+=X[i][a]*X[i][b];}}for(let i=0;i<k;i++){let p=i;for(let r=i+1;r<k;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;if(p!==i){const t=A[i];A[i]=A[p];A[p]=t;}const piv=A[i][i]||1e-12;for(let c=i;c<=k;c++)A[i][c]/=piv;for(let r=0;r<k;r++)if(r!==i){const f=A[r][i];for(let c=i;c<=k;c++)A[r][c]-=f*A[i][c];}}return A.map(r=>r[k]);}
+function fitAR(y,p){const n=y.length;if(p===0){const mu=mean(y);return{coef:[],intercept:mu,fit:y.map(()=>mu),resid:y.map(v=>v-mu),sigma2:variance(y)};}const X=[],Y=[];for(let t=p;t<n;t++){const row=[1];for(let k=1;k<=p;k++)row.push(y[t-k]);X.push(row);Y.push(y[t]);}if(X.length<2){const mu=mean(y);return{coef:new Array(p).fill(0),intercept:mu,fit:y.map(()=>mu),resid:y.map(v=>v-mu),sigma2:variance(y)};}const beta=lstsq(X,Y);const intercept=beta[0];const coef=beta.slice(1);const fit=new Array(p).fill(y[0]||0);const resid=new Array(p).fill(0);for(let t=p;t<n;t++){let yh=intercept;for(let k=1;k<=p;k++)yh+=coef[k-1]*y[t-k];fit.push(yh);resid.push(y[t]-yh);}const sigma2=resid.slice(p).reduce((s,e)=>s+e*e,0)/Math.max(1,n-p);return{coef,intercept,fit,resid,sigma2};}
+function fitARMA(y,p,q){if(q===0)return fitAR(y,p);const n=y.length;const m=Math.min(Math.floor(Math.log(n)*Math.log(n)),12);const ar=fitAR(y,m);const eps=ar.resid.slice();const start=Math.max(p,q)+m;if(start>=n-2){return fitAR(y,p);}const X=[],Y=[];for(let t=start;t<n;t++){const row=[1];for(let k=1;k<=p;k++)row.push(y[t-k]);for(let k=1;k<=q;k++)row.push(eps[t-k]);X.push(row);Y.push(y[t]);}const beta=lstsq(X,Y);const intercept=beta[0];const phi=beta.slice(1,1+p);const theta=beta.slice(1+p,1+p+q);const fit=new Array(start).fill(mean(y));const resid=new Array(start).fill(0);const innov=eps.slice();for(let t=start;t<n;t++){let yh=intercept;for(let k=1;k<=p;k++)yh+=phi[k-1]*y[t-k];for(let k=1;k<=q;k++)yh+=theta[k-1]*innov[t-k];fit.push(yh);const r=y[t]-yh;resid.push(r);innov[t]=r;}const sigma2=resid.slice(start).reduce((s,e)=>s+e*e,0)/Math.max(1,n-start);return{coef:phi,theta,intercept,fit,resid,sigma2};}
+function aicBic(s2,k,n){const ll=-0.5*n*(Math.log(2*Math.PI*Math.max(s2,1e-10))+1);return{aic:-2*ll+2*k,bic:-2*ll+k*Math.log(n)};}
+function rmse(r){const v=r.filter(x=>isFinite(x)&&x!==0);return v.length?Math.sqrt(v.reduce((s,e)=>s+e*e,0)/v.length):NaN;}
+
+// ===== ADF test =====
+function adf(y){
+ // Δy_t = α + γ y_{t-1} + Σ δ_i Δy_{t-i} + ε
+ const lags = Math.min(4, Math.floor(Math.cbrt(y.length)*1.5));
+ const dy = diff(y,1);
+ const n = dy.length;
+ const X=[], Y=[];
+ for(let t=lags; t<n; t++){
+  const row=[1, y[t]]; // intercept and y_{t-1} (note dy index t maps to y index t+1, so use y[t] for lag-1 of dy[t])
+  for(let i=1;i<=lags;i++) row.push(dy[t-i]);
+  X.push(row); Y.push(dy[t]);
+ }
+ if(X.length<6) return {stat:NaN, pvalue:1, crit:[-3.5,-2.9,-2.6], reject:false, lags};
+ const beta = lstsq(X,Y);
+ const gamma = beta[1];
+ // Compute SE of gamma
+ const k = beta.length;
+ const yhat = X.map(row=>row.reduce((s,v,i)=>s+v*beta[i],0));
+ const resid = Y.map((v,i)=>v-yhat[i]);
+ const s2 = resid.reduce((s,e)=>s+e*e,0)/Math.max(1,Y.length-k);
+ // Var-cov matrix diagonal element for gamma (column index 1)
+ // (X'X)^-1[1,1]; reuse Gauss-Jordan on identity
+ const k2=k;
+ const M = Array.from({length:k2},()=>new Array(2*k2).fill(0));
+ for(let i=0;i<k2;i++){for(let j=0;j<k2;j++){let v=0;for(let r=0;r<X.length;r++)v+=X[r][i]*X[r][j];M[i][j]=v;}M[i][k2+i]=1;}
+ for(let i=0;i<k2;i++){let p=i;for(let r=i+1;r<k2;r++)if(Math.abs(M[r][i])>Math.abs(M[p][i]))p=r;if(p!==i){const t=M[i];M[i]=M[p];M[p]=t;}const piv=M[i][i]||1e-12;for(let c=0;c<2*k2;c++)M[i][c]/=piv;for(let r=0;r<k2;r++)if(r!==i){const f=M[r][i];for(let c=0;c<2*k2;c++)M[r][c]-=f*M[i][c];}}
+ const xtxInv11 = M[1][k2+1];
+ const seGamma = Math.sqrt(Math.max(s2*xtxInv11,1e-12));
+ const stat = gamma / seGamma;
+ // ADF critical values for τ statistic with constant, large samples
+ const crit = [-3.43, -2.86, -2.57]; // 1%, 5%, 10%
+ const reject = stat < crit[1]; // reject at 5% if stat below 5% critical
+ const pvalue = stat < crit[0] ? 0.01 : stat < crit[1] ? 0.04 : stat < crit[2] ? 0.09 : 0.30;
+ return {stat, pvalue, crit, reject, lags, gamma};
+}
+
+// ===== Charts =====
+function drawSimple(svg,data,fit,fc,W,H){
+ W=W||700; H=H||280;
+ const padL=40,padR=10,padT=10,padB=20;
+ const iw=W-padL-padR, ih=H-padT-padB;
+ const all=data.concat(fit||[]).concat(fc||[]).filter(isFinite);
+ const lo=Math.min(...all)*1.0, hi=Math.max(...all)*1.0;
+ const span=Math.max(hi-lo,1e-6);
+ const total=data.length+(fc?fc.length:0);
+ const x=i=>padL+iw*i/Math.max(total-1,1);
+ const y=v=>padT+ih-(ih*(v-lo))/span;
+ let h=`<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ h+=`<line x1="${padL}" y1="${padT+ih}" x2="${padL+iw}" y2="${padT+ih}" stroke="#1F1B16" stroke-width="0.7"/>`;
+ [0,0.5,1].forEach(f=>{const v=lo+span*f,py=y(v);h+=`<text x="${padL-3}" y="${py+3}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="9" fill="#6B6256">${formatNum(v)}</text>`;if(f===0.5)h+=`<line x1="${padL}" y1="${py}" x2="${padL+iw}" y2="${py}" stroke="#E0D9C7" stroke-width="0.5"/>`;});
+ if(fc&&fc.length){const fcStart=x(data.length-1);h+=`<rect x="${fcStart}" y="${padT}" width="${padL+iw-fcStart}" height="${ih}" fill="#F2ECDC" opacity="0.6"/>`;}
+ let p=''; data.forEach((v,i)=>{p+=(i?'L':'M')+x(i)+','+y(v);});
+ h+=`<path d="${p}" fill="none" stroke="#1F1B16" stroke-width="1.4"/>`;
+ if(fit){let pf=''; fit.forEach((v,i)=>{if(isFinite(v))pf+=(pf?'L':'M')+x(i)+','+y(v);});h+=`<path d="${pf}" fill="none" stroke="#A8431E" stroke-width="1.2" stroke-dasharray="3 3"/>`;}
+ if(fc&&fc.length){let pfc=`M${x(data.length-1)},${y(data[data.length-1])}`;fc.forEach((v,i)=>{if(isFinite(v))pfc+=`L${x(data.length+i)},${y(v)}`;});h+=`<path d="${pfc}" fill="none" stroke="#1B3B6F" stroke-width="1.6"/>`;}
+ svg.innerHTML=h;
+}
+function formatNum(v){if(Math.abs(v)>=1000)return (v/1000).toFixed(1)+'k';if(Math.abs(v)>=10)return v.toFixed(1);return v.toFixed(2);}
+
+// ===== Verdicts =====
+function v(cls,reasoning,strengths,weaknesses,example,useInstead){return{classification:cls,reasoning,strengths,weaknesses,example,useInstead:useInstead||null};}
+const V = {
+ 'rw|010':v('textbook','A random walk has a unit root and no drift, and ARIMA(0,1,0) is exactly that model. Differencing once gives white noise, and the model parameters are zero, which is correct.',
+  ['Captures the unit-root structure of the random walk','One-step forecast is the last observed value, the maximum likelihood forecast for a random walk','Multi-step variance grows linearly, the honest uncertainty for an integrated series'],
+  ['No memory of any short-term dependency that may exist','Forecasts wander as widely as the data does, and that is the point'],
+  'Hyndman uses ARIMA(0,1,0) as the formal model behind the naive forecaster, the practitioner default for asset prices and aggregate exchange rates.'),
+ 'rw|110':v('workable','Adding an AR(1) term to the differenced random walk fits a coefficient that is, in expectation, zero. The model is overparameterised but harmless.',
+  ['One-step forecast still close to the naive forecaster','Captures any minor dependency in the differenced series'],
+  ['AR coefficient on differenced white noise is sampling noise','BIC will prefer ARIMA(0,1,0)'],
+  'A useful baseline against ARIMA(0,1,0). Compare AIC within d=1 to see whether the AR coefficient earned its parameter cost.'),
+ 'rw|100':v('wrong','ARIMA(1,0,0) on a random walk is AR(1) without differencing. The estimated coefficient is pushed toward 1 and standard inference fails because the t-statistic does not have a normal distribution under the unit root.',
+  null,null,'Estimated φ near 1, with confidence intervals that look fine but rely on assumptions that the unit root violates. ADF will refuse to reject the unit root null.',
+  {model:'ARIMA(0,1,0) or ARIMA(0,1,1)',page:'this page',reason:'differencing first restores the assumptions that ARMA needs'}),
+ 'trend|110':v('textbook','A linear trend with autoregressive residuals is the textbook ARIMA(1,1,0) case. Differencing removes the trend, and a single AR lag captures any remaining persistence.',
+  ['Differencing handles the deterministic trend','AR(1) on the differenced series is parsimonious','ADF on the original rejects stationarity, ADF on the differenced does not'],
+  ['If the trend has a structural break, a single d=1 differencing leaves a residual'],
+  'Box and Jenkins build their original ARIMA exposition around exactly this trend-plus-AR(1) shape.'),
+ 'trend|100':v('wrong','AR(1) without differencing tries to absorb a deterministic trend through a near-unit-root coefficient. Forecasts then drift in the recent direction with poorly calibrated uncertainty.',
+  null,null,'Persistent residuals, near-unit-root estimate, and the visible signal that the original series is not stationary.',
+  {model:'ARIMA(1,1,0) or ARIMA(0,1,1)',page:'this page',reason:'differencing first removes the trend, then the AR or MA term fits cleanly on what remains'}),
+ 'i2|012':v('textbook','An I(2) process needs two differences to become stationary. ARIMA(0,2,0) is the formal model.',
+  ['Δ² turns the series into white noise','Honest about the structural complexity'],
+  ['Forecasts have rapidly growing variance','d=2 is rare in practice and warrants investigation rather than blind fitting'],
+  'Twice-integrated processes turn up in price levels for some emerging markets and in physical sciences time series. Always sanity-check before reaching for d=2.'),
+ 'i2|010':v('workable','One difference is not enough for an I(2) process. The differenced series still drifts, and ARIMA(0,1,0) leaves visible structure.',
+  ['Captures most of the integration','Simpler model, easier to interpret'],
+  ['Residual ACF will show slow decay, the textbook signal that more differencing is needed','Multi-step forecasts will systematically miss the level'],
+  'A common mistake when an analyst stops after the first difference. The ADF test on Δy will tell you to difference again.'),
+ 'seas|110':v('wrong','The series has a seasonal cycle. Ordinary differencing removes the trend but leaves the seasonal pattern intact. Residuals will show a clear spike in the ACF at the seasonal lag.',
+  null,null,'Residual ACF spikes at lag m (here, 12 for monthly seasonality with period 12), the diagnostic that ARIMA without seasonal differencing is the wrong tool.',
+  {model:'SARIMA(p,d,q)(P,D,Q,m)',page:'sarimax.html',reason:'seasonal differencing of the form (1 − L^m) removes the cyclical component that ordinary differencing leaves behind'}),
+ 'seas|111':v('wrong','Same problem. Adding an MA term does not remove a seasonal cycle.',
+  null,null,'ACF of residuals will spike at the seasonal lag, regardless of how many AR or MA terms you add at low lags.',
+  {model:'SARIMA with non-zero D',page:'sarimax.html',reason:'seasonal differencing handles cycles, ordinary differencing handles trends, and the two operations target different structures'}),
+ 'wn|100':v('wrong','Fitting AR(1) to white noise overfits a coefficient that is, in expectation, zero.',
+  null,null,'φ near zero with wide confidence interval, residuals nearly identical to the original series.',
+  {model:'no model required, the mean',page:'no model required',reason:'white noise has no exploitable structure by definition'}),
+ 'wn|010':v('wrong','Differencing white noise produces white noise with twice the variance. ARIMA(0,1,0) here is doing more harm than good.',
+  null,null,'Δy has variance 2σ² rather than σ², and forecasts drift unnecessarily.',
+  {model:'ARIMA(0,0,0), the mean',page:'no model required',reason:'a series that is already stationary should not be differenced; differencing inflates variance and washes signal'}),
+ 'stat|100':v('textbook','The series is already stationary. ARIMA(1,0,0), which is just AR(1), is the textbook fit.',
+  ['ADF rejects the unit root','PACF cuts off at lag 1','No differencing means no variance inflation'],
+  ['Sensitive to small-sample noise','Higher-order ARMA may fit slightly better in-sample'],
+  'Hyndman repeatedly cautions against differencing already-stationary series. ADF first, then choose the order.'),
+ 'stat|010':v('wrong','Differencing an already-stationary series inflates variance and washes signal away. ADF on the original rejects the unit root, so d should be 0.',
+  null,null,'σ² of Δy is roughly 2σ² of y, and the differenced series shows visible alternation with no real signal.',
+  {model:'ARIMA(1,0,0) or ARIMA(p,0,q)',page:'this page',reason:'a stationary series should not be differenced; pick d=0 and choose p and q on the original'}),
+ 'shock|110':v('workable','One difference handles most of the trend, but the structural break leaves a residual pattern at the breakpoint. ARIMA(1,1,0) covers most of the variation but a careful analyst would investigate the break.',
+  ['Captures the dominant trend behaviour','AR(1) on Δy fits the persistence'],
+  ['The structural break leaves a localised residual','A break dummy or piecewise model would fit better'],
+  'A reminder that ARIMA assumes stationary increments. A genuine structural break warrants either a regime-switching model or explicit dummy variables, not more lags.'),
+ 'hybrid|110':v('textbook','Linear trend with AR(1) residuals is the canonical ARIMA(1,1,0) case.',
+  ['Differencing removes the deterministic trend','AR(1) captures the autoregressive dependency in the differenced series','ADF on Δy rejects the unit root'],
+  ['Sensitive to early-period observations','BIC may prefer the simpler ARIMA(0,1,0) on small samples'],
+  'A frequent macroeconomic shape: GDP-like growth with autoregressive deviations.')
+};
+function genericVerdict(sc,md){
+ const order = `(${md.p},${md.d},${md.q})`;
+ if(sc.seasonal && md.d<=1){
+  return v('wrong',`The series has seasonal structure that ordinary differencing leaves behind. ARIMA${order} produces residuals with a spike at the seasonal lag.`,null,null,
+   'Residual ACF will show a clear seasonal spike, the diagnostic that ARIMA is the wrong family.',
+   {model:'SARIMA(p,d,q)(P,D,Q,m)',page:'sarimax.html',reason:'seasonal differencing of the form (1 − L^m) handles cycles that ordinary differencing cannot'});
+ }
+ if(md.d > sc.trueD+1){
+  return v('wrong',`Over-differencing. The series only needs d=${sc.trueD}, but ARIMA${order} differences ${md.d} times. Variance inflates and signal washes away.`,null,null,
+   'Differenced series shows alternation rather than structure, and forecasts have inflated variance.',
+   {model:`ARIMA(p,${sc.trueD},q)`,page:'this page',reason:'match d to the actual integration order, then pick p and q on the differenced series'});
+ }
+ if(md.d < sc.trueD){
+  return v('wrong',`Under-differencing. The series needs d=${sc.trueD}, but ARIMA${order} differences only ${md.d} times. The unit root remains and standard inference is invalid.`,null,null,
+   'Residual ACF decays slowly rather than rapidly, the diagnostic that more differencing is needed.',
+   {model:`ARIMA(p,${sc.trueD},q)`,page:'this page',reason:'a unit root left in the residuals breaks the assumptions that ARMA estimation relies on'});
+ }
+ return v('workable',`ARIMA${order} on this series is reasonable. Compare AIC within d=${md.d} (the comparable group) to see whether p and q are well-chosen.`,
+  ['Differencing order matches the integration order','Parametric and forecastable'],
+  ['Without parameter optimisation the fit is approximate','A different choice of p and q at the same d may fit slightly better'],
+  'Within-d AIC is the comparable measure; ignore AIC values from rows with different d.');
+}
+
+// ===== State =====
+let curSc=SC[0].id, curMd=MD[0].id;
+function buildPickers(){
+ document.getElementById('dsList').innerHTML = SC.map(s=>`<button class="opt" data-sc="${s.id}"><span>${s.name}</span><span class="meta">${s.blurb}</span></button>`).join('');
+ document.getElementById('mdList').innerHTML = MD.map(m=>`<button class="opt" data-md="${m.id}"><span>${m.name}</span><span class="meta">${m.blurb}</span></button>`).join('');
+ document.getElementById('dsList').addEventListener('click',e=>{const b=e.target.closest('[data-sc]');if(b){curSc=b.dataset.sc;render();}});
+ document.getElementById('mdList').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(b){curMd=b.dataset.md;render();}});
+}
+
+function renderDiffStack(sc){
+ const stack=document.getElementById('diffStack');
+ const orig = sc.data;
+ const d1 = diff(orig,1);
+ const d2 = diff(orig,2);
+ stack.innerHTML = `
+  <div class="diff-card"><div class="head"><span>Original</span><span class="meta">n=${orig.length}, mean=${mean(orig).toFixed(2)}, sd=${Math.sqrt(variance(orig)).toFixed(2)}</span></div><svg id="origSvg" viewBox="0 0 700 120"></svg></div>
+  <div class="diff-card"><div class="head"><span>Δ y, first difference</span><span class="meta">n=${d1.length}, mean=${mean(d1).toFixed(3)}, sd=${Math.sqrt(variance(d1)).toFixed(3)}</span></div><svg id="d1Svg" viewBox="0 0 700 120"></svg></div>
+  <div class="diff-card"><div class="head"><span>Δ² y, second difference</span><span class="meta">n=${d2.length}, mean=${mean(d2).toFixed(3)}, sd=${Math.sqrt(variance(d2)).toFixed(3)}</span></div><svg id="d2Svg" viewBox="0 0 700 120"></svg></div>
+ `;
+ drawSimple(document.getElementById('origSvg'),orig,null,null,700,120);
+ drawSimple(document.getElementById('d1Svg'),d1,null,null,700,120);
+ drawSimple(document.getElementById('d2Svg'),d2,null,null,700,120);
+}
+
+function renderADF(sc){
+ const test = adf(sc.data);
+ const reject = test.reject;
+ const verdictText = isNaN(test.stat) ? 'Not enough data for a reliable ADF.' :
+  reject ? `Reject the unit root null at 5%. The series is consistent with stationarity, so d=0 is defensible.` :
+   `Cannot reject the unit root null at 5%. The series is consistent with non-stationarity, so try d=1.`;
+ document.getElementById('adfBody').innerHTML = `
+  <div class="row"><span class="lbl">Test statistic</span><span class="val ${reject?'pos':'neg'}">${isNaN(test.stat)?'—':test.stat.toFixed(3)}</span></div>
+  <div class="row"><span class="lbl">5% critical value</span><span class="val">${test.crit[1].toFixed(3)}</span></div>
+  <div class="row"><span class="lbl">Approx p-value</span><span class="val">${test.pvalue.toFixed(2)}</span></div>
+  <div class="row"><span class="lbl">Lags used</span><span class="val">${test.lags}</span></div>
+  <div class="verdict-line">${verdictText}</div>
+ `;
+}
+
+function fitARIMA(y,p,d,q){
+ const dy = diff(y,d);
+ const r = fitARMA(dy,p,q);
+ r.dy = dy; r.d = d;
+ return r;
+}
+
+function renderAICTable(sc, md){
+ const rows = MD.map(m=>{
+  const r = fitARIMA(sc.data, m.p, m.d, m.q);
+  const k = m.p+m.q+1;
+  const ab = aicBic(r.sigma2, k, r.dy.length);
+  return {md:m, aic:ab.aic, bic:ab.bic, rmse:rmse(r.resid)};
+ });
+ // Best within current d only
+ const sameD = rows.filter(r=>r.md.d===md.d);
+ const bestAic = sameD.length? sameD.reduce((b,r)=>r.aic<b.aic?r:b,sameD[0]) : null;
+ const bestBic = sameD.length? sameD.reduce((b,r)=>r.bic<b.bic?r:b,sameD[0]) : null;
+ document.getElementById('aicBest').textContent = bestAic ? `Within d=${md.d}: AIC favours ${bestAic.md.name}, BIC favours ${bestBic.md.name}` : `No comparison within d=${md.d}`;
+ document.getElementById('aicBody').innerHTML = rows.map(r=>{
+  const cls=[];
+  if(r.md.id===md.id) cls.push('current');
+  if(r.md.d===md.d) cls.push('same-d'); else cls.push('cross-d');
+  return `<tr class="${cls.join(' ')}"><td>${r.md.name}</td><td>${isFinite(r.aic)?r.aic.toFixed(1):'—'}</td><td>${isFinite(r.bic)?r.bic.toFixed(1):'—'}</td><td>${isFinite(r.rmse)?r.rmse.toFixed(3):'—'}</td></tr>`;
+ }).join('');
+}
+
+function render(){
+ const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
+ document.querySelectorAll('[data-sc]').forEach(b=>b.classList.toggle('on',b.dataset.sc===curSc));
+ document.querySelectorAll('[data-md]').forEach(b=>b.classList.toggle('on',b.dataset.md===curMd));
+ renderDiffStack(sc);
+ renderADF(sc);
+ renderAICTable(sc, md);
+ const verdict = V[sc.id+'|'+md.id] || genericVerdict(sc,md);
+ renderVerdict(verdict);
+}
+function renderVerdict(v){
+ const root=document.getElementById('verdict');
+ root.className='verdict '+(v.classification==='wrong'?'wrong':v.classification);
+ const lbl = v.classification==='textbook'?'Textbook fit':v.classification==='workable'?'Workable, with caveats':'Wrong tool';
+ document.getElementById('verdictLabel').textContent=lbl;
+ const sc=SC.find(s=>s.id===curSc), md=MD.find(m=>m.id===curMd);
+ let h=`<h3>${sc.name} <em>with</em> ${md.name}</h3>`;
+ h+=`<p>${v.reasoning}</p>`;
+ if(v.strengths) h+=`<ul class="pts strengths"><h4>Strengths</h4>${v.strengths.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ if(v.weaknesses) h+=`<ul class="pts weaknesses"><h4>Weaknesses</h4>${v.weaknesses.map(s=>`<li>${s}</li>`).join('')}</ul>`;
+ if(v.example) h+=`<div class="example">${v.example}</div>`;
+ if(v.useInstead) h+=`<div class="instead"><strong>Use instead</strong>${v.useInstead.model}, on ${pageLink(v.useInstead.page)}, because ${v.useInstead.reason}.</div>`;
+ document.getElementById('verdictBody').innerHTML=h;
+}
+
+buildPickers();
+render();
+(function(){var r=document.documentElement;function isDark(){return r.dataset.theme==='dark'||(r.dataset.theme!=='light'&&matchMedia('(prefers-color-scheme:dark)').matches);}var b=document.getElementById('themeToggle');if(!b)return;b.textContent=isDark()?'Light':'Dark';b.addEventListener('click',function(){var n=isDark()?'light':'dark';r.dataset.theme=n;localStorage.setItem('tsfg-theme',n);b.textContent=n==='dark'?'Light':'Dark';});})();
+</script>
+</body>
+</html>
